@@ -1,0 +1,67 @@
+# Production topology (docs/12): one app VM, managed Postgres, managed Redis, CDN in front.
+# Boring and cheap on purpose — no Kubernetes until there is a measured reason.
+services:
+  api:
+    image: ${REGISTRY}/balise-api:${GIT_SHA}
+    command: >-
+      uvicorn balise_api.main:app --host 0.0.0.0 --port 8000 --workers 2
+      --proxy-headers --forwarded-allow-ips="*"
+    env_file: [.env.prod]
+    expose: ["8000"]
+    deploy:
+      replicas: 2
+      restart_policy: { condition: any, delay: 5s }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+
+  # v1: tides and weather need a scheduler anyway, which is why the v2 status worker is a new job
+  # in an existing process rather than a new deployment unit (docs/07).
+  env-worker:
+    image: ${REGISTRY}/balise-workers:${GIT_SHA}
+    command: balise-env-worker run
+    env_file: [.env.prod]
+    restart: unless-stopped
+
+  # 🔌 v2 (docs/06 §B): `docker compose --profile availability up -d`, with FEATURE_AVAILABILITY=true
+  status-worker:
+    image: ${REGISTRY}/balise-workers:${GIT_SHA}
+    command: balise-status-worker run
+    env_file: [.env.prod]
+    restart: unless-stopped
+    profiles: ["availability"]
+
+  ais-listener:
+    image: ${REGISTRY}/balise-workers:${GIT_SHA}
+    command: balise-ais-listener run
+    env_file: [.env.prod]
+    restart: unless-stopped
+    profiles: ["ais"] # v2, and only with FEATURE_AIS=true and a key (docs/06 §B.1)
+
+  ingest:
+    image: ${REGISTRY}/balise-ingest:${GIT_SHA}
+    env_file: [.env.prod]
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["crond -f -l 8"]
+    volumes:
+      - ./crontab:/etc/crontabs/root:ro
+      - raw:/app/raw
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  raw: {}
+  caddy_data: {}
+  caddy_config: {}

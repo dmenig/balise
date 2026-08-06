@@ -1,0 +1,348 @@
+{
+  "title": "Balise — overview",
+  "uid": "balise-overview",
+  "tags": [
+    "balise"
+  ],
+  "timezone": "utc",
+  "refresh": "1m",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "description": "v1 is the referential: data quality first (docs/13). The availability panels are 🔌 v2 and read empty until the seam is switched on (docs/06 §A).",
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "type": "custom",
+        "query": "prod,staging",
+        "current": {
+          "text": "prod",
+          "value": "prod"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Data quality (the alerts that matter)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Referential objects",
+      "description": "Nav aids + active spots. The v1 product, in one number (docs/00).",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT (SELECT count(*) FROM nav_aid WHERE active) + (SELECT count(*) FROM spot WHERE active) AS value",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Harbours reachable by neither phone nor VHF",
+      "description": "Must be 0: in v1 the phone *is* the availability feature (docs/13).",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT count(*) AS value FROM harbour WHERE (phone IS NULL OR phone = '') AND vhf_channel IS NULL",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Corrections submitted per day (v1's contribution loop)",
+      "description": "docs/00 target: ≥ 100 merged per season.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT date_trunc('day', created_at) AS time, category AS metric, count(*) AS value FROM issue WHERE $__timeFilter(created_at) GROUP BY 1, 2 ORDER BY 1",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "🔌 Feeds silent > 3 × ttl (v2)",
+      "description": "A stale feed must degrade to `unknown`, never stay green (docs/06). Reads 0 in v1: the table is empty.",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT count(*) AS value FROM feed WHERE active AND (last_seen_at IS NULL OR last_seen_at < now() - make_interval(secs => 3 * ttl_seconds))",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "🔌 Statuses served as free (v2)",
+      "description": "Free displayed = confidence ≥ 0.4 and inside its hard-expiry window. Reads 0 in v1: the table is empty.",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT count(*) AS value FROM spot_status WHERE state = 'free' AND confidence >= 0.4 AND as_of > now() - interval '6 hours'",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "🔌 Stale free (audit violation) (v2)",
+      "description": "Must be 0: a free older than its hard expiry may never be shown (docs/13). Reads 0 in v1: the table is empty.",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT count(*) AS value FROM spot_status WHERE state = 'free' AND confidence >= 0.4 AND as_of < now() - interval '6 hours'",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Referential version",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT CAST(value AS bigint) AS value FROM meta WHERE key = 'ref_version'",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "🔌 Observations per hour by tier (v2)",
+      "description": "T1 partner feeds vs T2 community vs T3 AIS (docs/06).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT date_trunc('hour', received_at) AS time, source_kind::text AS metric, count(*) AS value FROM observation WHERE $__timeFilter(received_at) GROUP BY 1, 2 ORDER BY 1",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "🔌 Status share (v2)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT date_trunc('hour', updated_at) AS time, state::text AS metric, count(*) AS value FROM spot_status WHERE $__timeFilter(updated_at) GROUP BY 1, 2 ORDER BY 1",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Per-source referential health",
+      "description": "Counts and last successful sync — the earliest warning of a broken source.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT s.id AS source, s.last_sync_at, (SELECT count(*) FROM nav_aid n WHERE n.source_id = s.id) AS nav_aids, (SELECT count(*) FROM spot sp WHERE sp.source_id = s.id AND sp.active) AS spots FROM source s ORDER BY s.id",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Partner feeds",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT id, last_seen_at, ttl_seconds, accepted_24h, rejected_24h, round(rejected_24h::numeric / GREATEST(accepted_24h + rejected_24h, 1), 3) AS rejection_rate FROM feed WHERE active ORDER BY last_seen_at DESC NULLS FIRST",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Service health",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP p95 latency by route (OpenTelemetry)",
+      "description": "Alert: p95 /v1/spots > 500 ms for 10 min (docs/12).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_duration_bucket{service_name=\"balise-api\",env=\"$env\"}[5m])))",
+          "legendFormat": "{{http_route}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Tile render time p95 by zoom",
+      "description": "Budget: p95 < 300 ms (ADR-0002).",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 31
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (zoom, le) (rate(balise_tile_render_duration_bucket{env=\"$env\"}[5m])))",
+          "legendFormat": "z{{zoom}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Websocket connections",
+      "description": "Cap 20 000; above 80 % switch to polling (FEATURE_WEBSOCKET=false).",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 31
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "balise_websocket_connections{env=\"$env\"}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+# One Dockerfile, three targets (api, workers, ingest) — same base, same lockfile, one build cache.
+FROM python:3.12-slim-bookworm AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/usr/local
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# Dependencies first: the lockfile changes far less often than the sources.
+COPY pyproject.toml uv.lock ./
+COPY api/pyproject.toml api/pyproject.toml
+COPY ingest/pyproject.toml ingest/pyproject.toml
+COPY workers/pyproject.toml workers/pyproject.toml
+RUN uv sync --frozen --no-dev --no-install-workspace
+
+COPY api ./api
+COPY ingest ./ingest
+COPY workers ./workers
+COPY docs ./docs
+RUN uv sync --frozen --no-dev
+
+RUN useradd --create-home --uid 10001 balise && chown -R balise:balise /app
+USER balise
+
+# --- api --------------------------------------------------------------------
+FROM base AS api
+WORKDIR /app/api
+EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=5s --retries=4 \
+    CMD python -c "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"
+CMD ["uvicorn", "balise_api.main:app", "--host", "0.0.0.0", "--port", "8000", \
+     "--proxy-headers", "--forwarded-allow-ips=*"]
+
+# --- workers ----------------------------------------------------------------
+FROM base AS workers
+CMD ["balise-status-worker", "run"]
+
+# --- ingest -----------------------------------------------------------------
+FROM base AS ingest
+USER root
+# osmium for the daily France extract, busybox crond for the schedule (docs/10).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends osmium-tool busybox \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app/raw && chown balise:balise /app/raw
+USER balise
+VOLUME ["/app/raw"]
+CMD ["balise-ingest", "--help"]

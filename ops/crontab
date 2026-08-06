@@ -1,0 +1,29 @@
+# Ingest schedule (docs/10). Times are UTC; the app VM runs UTC.
+# Every job is idempotent, keeps previous data on failure, and never wipes the map.
+
+# SHOM balisage — weekly, Monday 03:00
+0 3 * * 1 balise-ingest shom balisage >> /proc/1/fd/1 2>&1
+
+# SHOM ports and réglementation — monthly
+0 4 1 * * balise-ingest shom ports >> /proc/1/fd/1 2>&1
+30 4 1 * * balise-ingest shom reglementation >> /proc/1/fd/1 2>&1
+0 5 1 * * balise-ingest shom spm >> /proc/1/fd/1 2>&1
+
+# OSM France extract — daily 04:00, then hourly Overpass deltas on the coastal bbox
+0 4 * * * balise-ingest osm full >> /proc/1/fd/1 2>&1
+20 * * * * balise-ingest osm delta --hours 2 >> /proc/1/fd/1 2>&1
+
+# Tides — daily, 7 days ahead per reference port (no-op without SHOM_TIDE_API_KEY)
+15 2 * * * balise-ingest tides >> /proc/1/fd/1 2>&1
+
+# Weather — hourly per harbour
+40 * * * * balise-ingest weather >> /proc/1/fd/1 2>&1
+
+# Data-quality audit — nightly; opens an issue, never pages anyone
+30 1 * * * balise-audit run >> /proc/1/fd/1 2>&1
+
+# 🔌 v2 (docs/06 §B): when availability is switched on, the status worker runs as a service, not a
+# cron job — see ops/docker-compose.prod.yml, profile "availability".
+
+# Raw snapshots — keep 90 days
+0 6 * * 0 balise-ingest prune-snapshots osm --keep-days 90 >> /proc/1/fd/1 2>&1

@@ -1,0 +1,72 @@
+{
+  "name": "balise-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium",
+    "gen:api": "openapi-typescript http://localhost:8000/v1/openapi.json -o src/lib/api-types.ts",
+    "size": "size-limit",
+    "fmt": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"*.{ts,json}\"",
+    "fmt:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.ts\" \"*.{ts,json}\""
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.59.0",
+    "i18next": "^23.16.0",
+    "idb": "^8.0.0",
+    "maplibre-gl": "^4.7.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^15.1.0",
+    "react-router-dom": "^6.27.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@size-limit/preset-app": "^11.1.6",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^22.7.0",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "jsdom": "^25.0.1",
+    "openapi-typescript": "^7.4.1",
+    "postcss": "^8.4.47",
+    "prettier": "^3.3.3",
+    "size-limit": "^11.1.6",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "vite-plugin-pwa": "^0.21.2",
+    "vitest": "^2.1.2",
+    "workbox-build": "^7.1.0",
+    "workbox-window": "^7.1.0"
+  },
+  "size-limit": [
+    {
+      "name": "app shell (hors MapLibre)",
+      "path": "dist/assets/index-*.js",
+      "limit": "220 kB",
+      "gzip": true
+    }
+  ]
+}

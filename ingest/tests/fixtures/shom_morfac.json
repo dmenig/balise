@@ -1,0 +1,144 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "morfac.1",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -1.0353404,
+                    45.5319257
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000001090900001",
+                "posacc": 0.4,
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null,
+                "numald": "3300241",
+                "persta": null,
+                "perend": null,
+                "condtn": null,
+                "convis": 2,
+                "boyshp": null,
+                "catmor": 1,
+                "colour": "2,1",
+                "colpat": "1",
+                "height": 8,
+                "verlen": null,
+                "watlev": null,
+                "status": null,
+                "aisatn": null,
+                "daymar": null,
+                "topmar": null,
+                "fogsig": null,
+                "radsta": null,
+                "rtpbcn": null,
+                "rdosta": null,
+                "sistat": null,
+                "sistaw": null,
+                "lights": "FR000004855800001,FR000004855900001,FR000009583700001,FR000013859000001"
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "morfac.2",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -1.0306758,
+                    45.5101117
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000001091100001",
+                "posacc": 3,
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null,
+                "numald": null,
+                "persta": null,
+                "perend": null,
+                "condtn": null,
+                "convis": null,
+                "boyshp": null,
+                "catmor": 5,
+                "colour": null,
+                "colpat": null,
+                "height": null,
+                "verlen": null,
+                "watlev": null,
+                "status": null,
+                "aisatn": null,
+                "daymar": null,
+                "topmar": null,
+                "fogsig": null,
+                "radsta": null,
+                "rtpbcn": null,
+                "rdosta": null,
+                "sistat": null,
+                "sistaw": null,
+                "lights": null
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "morfac.3",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -2.1966957,
+                    47.2727854
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000001271300001",
+                "posacc": 0.7,
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null,
+                "numald": "4400299",
+                "persta": null,
+                "perend": null,
+                "condtn": null,
+                "convis": 2,
+                "boyshp": null,
+                "catmor": 1,
+                "colour": null,
+                "colpat": null,
+                "height": 8,
+                "verlen": 9,
+                "watlev": null,
+                "status": null,
+                "aisatn": null,
+                "daymar": null,
+                "topmar": null,
+                "fogsig": null,
+                "radsta": null,
+                "rtpbcn": null,
+                "rdosta": null,
+                "sistat": null,
+                "sistaw": null,
+                "lights": "FR000004605500001"
+            }
+        }
+    ],
+    "totalFeatures": 1394,
+    "numberMatched": 1394,
+    "numberReturned": 3,
+    "timeStamp": "2026-08-06T16:29:05.601Z",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:EPSG::4326"
+        }
+    }
+}

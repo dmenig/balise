@@ -1,0 +1,78 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "hrbfac_point.1",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    2.37723186,
+                    51.04063018
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000010101400003",
+                "cathaf": "4",
+                "status": null,
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "hrbfac_point.2",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    2.18515094,
+                    51.01728009
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000010101300003",
+                "cathaf": "1",
+                "status": null,
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "hrbfac_point.3",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    2.37272187,
+                    51.04648023
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000010101500003",
+                "cathaf": "5",
+                "status": null,
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null
+            }
+        }
+    ],
+    "totalFeatures": 732,
+    "numberMatched": 732,
+    "numberReturned": 3,
+    "timeStamp": "2026-08-06T16:29:06.314Z",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:EPSG::4326"
+        }
+    }
+}

@@ -1,0 +1,30 @@
+[project]
+name = "balise-workers"
+version = "0.1.0"
+description = "Balise background workers (v1: tides/weather; v2: status decay, AIS)"
+requires-python = ">=3.12"
+dependencies = [
+    "balise-api",
+    "balise-ingest",
+    "apscheduler>=3.10",
+    "websockets>=13.1",
+    "typer>=0.13",
+]
+
+[project.scripts]
+# v1
+balise-env-worker = "balise_workers.env_worker:app"
+# 🔌 v2 (docs/06 §B): wired when availability is switched on
+balise-status-worker = "balise_workers.status_worker:app"
+balise-ais-listener = "balise_workers.ais_listener:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/balise_workers"]
+
+[tool.uv.sources]
+balise-api = { workspace = true }
+balise-ingest = { workspace = true }

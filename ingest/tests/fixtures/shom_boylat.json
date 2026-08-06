@@ -1,0 +1,129 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "boylat.1",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -52.2202667,
+                    4.8808167
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000000809200001",
+                "posacc": null,
+                "objnam": "D12",
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null,
+                "numald": "97300013",
+                "persta": null,
+                "perend": null,
+                "boyshp": 4,
+                "catlam": 1,
+                "colour": "4",
+                "colpat": null,
+                "status": null,
+                "aisatn": null,
+                "daymar": null,
+                "topmar": "FR000012640000001",
+                "fogsig": null,
+                "radsta": null,
+                "rtpbcn": null,
+                "rdosta": null,
+                "sistat": null,
+                "sistaw": null,
+                "lights": "FR000009448400001"
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "boylat.2",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -52.2261167,
+                    4.87395
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000000809600001",
+                "posacc": null,
+                "objnam": "D14",
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null,
+                "numald": "97300015",
+                "persta": null,
+                "perend": null,
+                "boyshp": 4,
+                "catlam": 1,
+                "colour": "4",
+                "colpat": null,
+                "status": null,
+                "aisatn": null,
+                "daymar": null,
+                "topmar": "FR000012640100001",
+                "fogsig": null,
+                "radsta": null,
+                "rtpbcn": null,
+                "rdosta": null,
+                "sistat": null,
+                "sistaw": null,
+                "lights": "FR000008266300001"
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "boylat.3",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -52.2334,
+                    4.8683
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000000812500001",
+                "posacc": null,
+                "objnam": "D15",
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null,
+                "numald": "97300016",
+                "persta": null,
+                "perend": null,
+                "boyshp": 4,
+                "catlam": 2,
+                "colour": "3",
+                "colpat": null,
+                "status": null,
+                "aisatn": null,
+                "daymar": null,
+                "topmar": "FR000012640600001",
+                "fogsig": null,
+                "radsta": null,
+                "rtpbcn": null,
+                "rdosta": null,
+                "sistat": null,
+                "sistaw": null,
+                "lights": "FR000008266800001"
+            }
+        }
+    ],
+    "totalFeatures": 1860,
+    "numberMatched": 1860,
+    "numberReturned": 3,
+    "timeStamp": "2026-08-06T16:29:05.430Z",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:EPSG::4326"
+        }
+    }
+}

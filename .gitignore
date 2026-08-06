@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.env
+raw/
+uv.lock.bak
+
+# web
+web/node_modules/
+web/dist/
+web/dev-dist/
+web/playwright-report/
+web/test-results/
+web/src/lib/api-types.ts
+.hypothesis/

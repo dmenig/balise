@@ -1,0 +1,53 @@
+{
+  "type": "FeatureCollection",
+  "name": "ZMEL Morbihan (trimmed fixture — shapes seen in the real départemental datasets)",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "zmel.56.1",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-2.9, 47.55],
+            [-2.9, 47.56],
+            [-2.88, 47.56],
+            [-2.88, 47.55],
+            [-2.9, 47.55]
+          ]
+        ]
+      },
+      "properties": {
+        "NOM": "ZMEL de Port-Navalo",
+        "NB_BOUEES": "42",
+        "NB_VISITEURS": 4,
+        "GESTIONNAIRE": "Commune d'Arzon"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "zmel.56.2",
+      "geometry": { "type": "Point", "coordinates": [-2.8955, 47.5541] },
+      "properties": { "num_bouee": "17", "profondeur": "2,4", "nom": "Corps-mort 17" }
+    },
+    {
+      "type": "Feature",
+      "id": "zmel.56.3",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [-2.87, 47.57],
+              [-2.87, 47.575],
+              [-2.86, 47.575],
+              [-2.86, 47.57],
+              [-2.87, 47.57]
+            ]
+          ]
+        ]
+      },
+      "properties": { "libelle": "Zone de mouillage du Logeo" }
+    }
+  ]
+}

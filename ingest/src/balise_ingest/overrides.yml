@@ -1,0 +1,29 @@
+# Manual data corrections, applied last in the pipeline (docs/10).
+# Every correction is reviewable in git — that is the whole point of this file.
+version: 1
+
+# Objects we refuse to import (duplicates upstream, joke edits, private moorings mapped publicly).
+blacklist: []
+#  - source_id: osm
+#    external_id: node/1234567890
+#    reason: "duplicate du corps-mort zmel.56/117, signalé à OSM le 2026-08-01"
+
+# Positions we trust more than the source (surveyed by a local, checked on the water).
+pin_position: []
+#  - source_id: osm
+#    external_id: node/1234567890
+#    lon: -2.90211
+#    lat: 47.54118
+#    reason: "relevé GPS gardien de zone, 2026-07-14"
+
+# Pairs the automatic rules refuse to merge but that are the same object.
+force_merge: []
+#  - keep: { source_id: zmel.56, external_id: "117" }
+#    absorb: { source_id: osm, external_id: node/1234567890 }
+#    reason: "35 m d'écart, même bouée n°117"
+
+# Pairs the automatic rules merge but that are two distinct objects (two buoys 6 m apart).
+force_split: []
+#  - left: { source_id: osm, external_id: node/1111 }
+#    right: { source_id: osm, external_id: node/2222 }
+#    reason: "deux corps-morts distincts au Palais, vérifié 2026-06-02"

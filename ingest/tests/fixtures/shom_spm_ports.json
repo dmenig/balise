@@ -1,0 +1,102 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "liste_ports_spm_h2m.1",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -4.633333,
+                    48.5915
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "cst": "ABER_BENOIT_MEAN_RENEAT",
+                "toponyme": "L'Aber Beno\u00eet",
+                "ut": 10,
+                "ut_sup": 20,
+                "baie_de_se": 0,
+                "pays": "France",
+                "coeff": 1,
+                "official": 1,
+                "nota": 0,
+                "cache": 1,
+                "h_legale": 1,
+                "lat": 48.5915,
+                "lon": -4.633333,
+                "ref": 0,
+                "ch_ref": "ROSCOFF"
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "liste_ports_spm_h2m.2",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -4.561667,
+                    48.598333
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "cst": "ABER_WRAC_H",
+                "toponyme": "L'Aber Wrac'h",
+                "ut": 10,
+                "ut_sup": 20,
+                "baie_de_se": 0,
+                "pays": "France",
+                "coeff": 1,
+                "official": 1,
+                "nota": 0,
+                "cache": 1,
+                "h_legale": 1,
+                "lat": 48.598333,
+                "lon": -4.561667,
+                "ref": 0,
+                "ch_ref": "ROSCOFF"
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "liste_ports_spm_h2m.3",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -4.007417,
+                    5.254917
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "cst": "ABIDJAN-VRIDI",
+                "toponyme": "Abidjan",
+                "ut": 0,
+                "ut_sup": 0,
+                "baie_de_se": 0,
+                "pays": "C\u00f4te d''Ivoire",
+                "coeff": 0,
+                "official": 0,
+                "nota": 0,
+                "cache": 0,
+                "h_legale": 0,
+                "lat": 5.254917,
+                "lon": -4.007417,
+                "ref": 1,
+                "ch_ref": null
+            }
+        }
+    ],
+    "totalFeatures": 439,
+    "numberMatched": 439,
+    "numberReturned": 3,
+    "timeStamp": "2026-08-06T16:29:06.653Z",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:EPSG::4326"
+        }
+    }
+}

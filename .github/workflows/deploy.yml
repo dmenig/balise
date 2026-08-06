@@ -1,0 +1,135 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    name: build images and the web bundle
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        run: echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USER }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+      - name: api image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ops/Dockerfile.python
+          target: api
+          push: true
+          tags: ${{ vars.REGISTRY }}/balise-api:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: workers image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ops/Dockerfile.python
+          target: workers
+          push: true
+          tags: ${{ vars.REGISTRY }}/balise-workers:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+      - name: ingest image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ops/Dockerfile.python
+          target: ingest
+          push: true
+          tags: ${{ vars.REGISTRY }}/balise-ingest:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm, cache-dependency-path: web/pnpm-lock.yaml }
+      - run: cd web && pnpm install --frozen-lockfile && pnpm build
+      - name: Prerender the harbour pages from the live API (SEO, ADR-0001)
+        run: cd web && API=${{ vars.API_BASE_URL }} node scripts/prerender.mjs
+      - uses: actions/upload-artifact@v4
+        with: { name: web-dist, path: web/dist, retention-days: 7 }
+
+  staging:
+    name: staging — migrate, deploy, smoke
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      # Migrations run *before* the new image is served, and must be backward-compatible with the
+      # previous release (expand/contract — docs/12).
+      - name: Migrate
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new "$STAGING_HOST" \
+            "cd /srv/balise && GIT_SHA=${{ needs.build.outputs.sha }} \
+             docker compose -f ops/docker-compose.prod.yml run --rm api alembic upgrade head"
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+      - name: Deploy
+        run: |
+          ssh "$STAGING_HOST" "cd /srv/balise && GIT_SHA=${{ needs.build.outputs.sha }} \
+            docker compose -f ops/docker-compose.prod.yml up -d --remove-orphans"
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+      - name: Smoke tests — health, a real tile, one known status
+        run: |
+          BASE=${{ vars.STAGING_BASE_URL }}
+          curl -fsS "$BASE/ready" | tee /dev/stderr | grep -q '"database":true'
+          curl -fsS -o /tmp/tile.mvt -w '%{http_code}' "$BASE/v1/tiles/navaids/12/2014/1431.mvt" | grep -qE '200|204'
+          curl -fsS "$BASE/v1/health/data" | tee /dev/stderr | grep -q '"sources"'
+
+  production:
+    name: production — manual approval, rolling deploy, post-deploy checks
+    needs: [build, staging]
+    runs-on: ubuntu-latest
+    environment: production # requires a reviewer in the environment protection rules
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: web-dist, path: web/dist }
+      - name: Migrate
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new "$PROD_HOST" \
+            "cd /srv/balise && GIT_SHA=${{ needs.build.outputs.sha }} \
+             docker compose -f ops/docker-compose.prod.yml run --rm api alembic upgrade head"
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+      - name: Rolling deploy (api ×2 behind Caddy)
+        run: |
+          ssh "$PROD_HOST" "cd /srv/balise && GIT_SHA=${{ needs.build.outputs.sha }} \
+            docker compose -f ops/docker-compose.prod.yml up -d --no-deps --scale api=2 api \
+            && docker compose -f ops/docker-compose.prod.yml up -d env-worker"
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+      - name: Publish the web bundle to the CDN
+        run: rsync -az --delete web/dist/ "$PROD_HOST:/srv/web/"
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+      - name: Post-deploy checks
+        run: |
+          BASE=${{ vars.API_BASE_URL }}
+          curl -fsS "$BASE/ready" | grep -q '"status":"ok"'
+          curl -fsS -o /dev/null -w '%{http_code}\n' "$BASE/v1/spots?bbox=-3.2,47.4,-2.6,47.8&limit=1" | grep -q 200
+      - name: Rollback instructions on failure
+        if: failure()
+        run: |
+          echo "Redeploy the previous tag: GIT_SHA=<previous> docker compose up -d."
+          echo "Database rollback is never automatic (docs/12)."

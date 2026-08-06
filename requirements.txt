@@ -1,0 +1,5 @@
+# Streamlit Community Cloud entrypoint deps only (streamlit_app.py).
+# The full stack (api/, ingest/, workers/) is installed with uv — see pyproject.toml.
+streamlit>=1.40
+pandas>=2.2
+pydeck>=0.9

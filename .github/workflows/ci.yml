@@ -1,0 +1,191 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BALISE_TEST_DATABASE_URL: postgresql+psycopg://balise:balise@localhost:5432/balise_test
+  BALISE_TEST_REDIS_URL: redis://localhost:6379/1
+
+jobs:
+  python:
+    name: python — format, lint, types, tests
+    runs-on: ubuntu-latest
+    services:
+      db:
+        # The real PostGIS image: spatial SQL is never mocked (docs/13).
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: balise
+          POSTGRES_PASSWORD: balise
+          POSTGRES_DB: balise_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U balise" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Lint
+        run: uv run ruff check .
+      - name: Types
+        run: uv run mypy api ingest workers ops
+      - name: v1 tests + coverage on the code that decides what a sailor sees (docs/13)
+        run: |
+          uv run pytest -q \
+            --cov=balise_ingest.conflate \
+            --cov=balise_ingest.normalisers \
+            --cov=balise_ingest.load \
+            --cov=balise_api.services.issues \
+            --cov-report=term-missing \
+            --cov-fail-under=80
+      - name: The availability seam must stay honest (docs/13)
+        run: uv run pytest api/tests/test_availability_seam.py -q
+      - name: 🔌 The v2 availability plug-in suite (not a v1 gate, kept green for M3)
+        env:
+          FEATURE_AVAILABILITY: "true"
+        run: uv run pytest api/tests/v2 workers/tests/v2 -q
+
+  web:
+    name: web — lint, types, unit tests, bundle budget
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Bundle budget (docs/09)
+        run: pnpm size
+
+  migrations:
+    name: migrations — apply, and stay in step with the models
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: balise
+          POSTGRES_PASSWORD: balise
+          POSTGRES_DB: balise
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U balise" --health-interval 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://balise:balise@localhost:5432/balise
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      # Not just three `alembic` calls: each step asserts the tables really appeared or went away,
+      # because an env.py that leaves a transaction open makes all three exit 0 doing nothing.
+      - name: Upgrade → downgrade → upgrade, with the schema checked at every step
+        run: uv run python ops/scripts/migration_roundtrip.py
+      - name: No pending model drift
+        run: |
+          cd api
+          uv run alembic check
+
+  e2e:
+    name: e2e — the five journeys, offline included
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'e2e')
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: balise
+          POSTGRES_PASSWORD: balise
+          POSTGRES_DB: balise
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U balise" --health-interval 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://balise:balise@localhost:5432/balise
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: cd web && pnpm install --frozen-lockfile
+      - run: cd web && pnpm exec playwright install --with-deps chromium
+      - name: Seed a working stack from the checked-in fixture
+        run: |
+          cd api && uv run alembic upgrade head && cd ..
+          uv run balise-ingest seed
+      - name: Serve the API
+        run: uv run uvicorn balise_api.main:app --port 8000 &
+      - name: Wait for the API
+        run: timeout 60 bash -c 'until curl -sf localhost:8000/ready; do sleep 1; done'
+      - run: cd web && pnpm build
+      - run: cd web && pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          retention-days: 7
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    continue-on-error: true # warn, never block (docs/13)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - run: uv run --with pip-audit pip-audit || true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: cd web && pnpm install --frozen-lockfile && pnpm audit --prod || true

@@ -1,0 +1,87 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "achare_point.1",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    9.28492003,
+                    42.68559998
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000001987200003",
+                "catach": "1",
+                "restrn": null,
+                "perend": null,
+                "persta": null,
+                "status": "3",
+                "objnam": null,
+                "nobjnm": null,
+                "inform": "The seabed is partially covered with protected biocenosis. In order to preserve these areas, mariners must anchor on sand after visual examination of the seabed (see French sailing directions).",
+                "ninfom": "Les fonds sont en partie occup\u00e9s par des bioc\u00e9noses prot\u00e9g\u00e9es. Les navigateurs doivent mouiller sur fond de sable apr\u00e8s reconnaissance afin de ne pas endommager ces zones (voir Instructions Nautiques)."
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "achare_point.2",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    9.29425002,
+                    42.68067003
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000001987100003",
+                "catach": "1",
+                "restrn": null,
+                "perend": null,
+                "persta": null,
+                "status": "3",
+                "objnam": null,
+                "nobjnm": null,
+                "inform": "The seabed is partially covered with protected biocenosis. In order to preserve these areas, mariners must anchor on sand after visual examination of the seabed (see French sailing directions).",
+                "ninfom": "Les fonds sont en partie occup\u00e9s par des bioc\u00e9noses prot\u00e9g\u00e9es. Les navigateurs doivent mouiller sur fond de sable apr\u00e8s reconnaissance afin de ne pas endommager ces zones (voir Instructions Nautiques)."
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "achare_point.3",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    8.85583327,
+                    42.61033328
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000016346600003",
+                "catach": "1",
+                "restrn": null,
+                "perend": null,
+                "persta": null,
+                "status": "3",
+                "objnam": null,
+                "nobjnm": null,
+                "inform": "The seabed is partially covered with protected biocenosis. In order to preserve these areas, mariners must anchor on sand after visual examination of the seabed (see French sailing directions).",
+                "ninfom": "Les fonds sont en partie occup\u00e9s par des bioc\u00e9noses prot\u00e9g\u00e9es. Les navigateurs doivent mouiller sur fond de sable apr\u00e8s reconnaissance afin de ne pas endommager ces zones (voir Instructions Nautiques)."
+            }
+        }
+    ],
+    "totalFeatures": 790,
+    "numberMatched": 790,
+    "numberReturned": 3,
+    "timeStamp": "2026-08-06T16:29:06.125Z",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:EPSG::4326"
+        }
+    }
+}

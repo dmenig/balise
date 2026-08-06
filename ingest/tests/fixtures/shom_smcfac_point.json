@@ -1,0 +1,75 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "smcfac_point.1",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -2.34688174,
+                    47.2580163
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000010542100003",
+                "catscf": "1",
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "smcfac_point.2",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -2.34758171,
+                    47.25863128
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000010542400003",
+                "catscf": "3",
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "smcfac_point.3",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -2.34632173,
+                    47.25826127
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000010542500003",
+                "catscf": "2",
+                "objnam": null,
+                "nobjnm": null,
+                "inform": null,
+                "ninfom": null
+            }
+        }
+    ],
+    "totalFeatures": 310,
+    "numberMatched": 310,
+    "numberReturned": 3,
+    "timeStamp": "2026-08-06T16:29:06.478Z",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:EPSG::4326"
+        }
+    }
+}

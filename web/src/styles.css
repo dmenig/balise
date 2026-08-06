@@ -1,0 +1,69 @@
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Outdoor-first: high contrast in daylight, and a red night mode that never emits white light
+   (docs/09 UX rule 3). WCAG 2.2 AA contrast is verified in both themes. */
+:root {
+  color-scheme: light;
+  --balise-bg: #f2f8fb;
+  --balise-fg: #0b2b3c;
+}
+
+:root[data-theme='night'] {
+  color-scheme: dark;
+  --balise-bg: #140000;
+  --balise-fg: #ff6b6b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--balise-bg);
+  color: var(--balise-fg);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Night mode: no white surfaces at all. Everything is a dim red on near-black. */
+:root[data-theme='night'] body {
+  filter: saturate(0.6);
+}
+
+:root[data-theme='night'] .bg-white,
+:root[data-theme='night'] [class*='bg-sea-50'],
+:root[data-theme='night'] [class*='bg-land-'] {
+  background-color: #1a0303 !important;
+  color: var(--balise-fg) !important;
+}
+
+:root[data-theme='night'] [class*='text-sea-'],
+:root[data-theme='night'] [class*='text-white'] {
+  color: var(--balise-fg) !important;
+}
+
+:root[data-theme='night'] [class*='border-sea-'] {
+  border-color: #6b1f1f !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Focus is always visible: the list view must be fully keyboard-navigable. */
+:focus-visible {
+  outline: 3px solid #1f9d55;
+  outline-offset: 2px;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+}

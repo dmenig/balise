@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment: { POSTGRES_USER: balise, POSTGRES_PASSWORD: balise, POSTGRES_DB: balise }
+    # Override DB_PORT when a Postgres already listens on 5432 on the host.
+    ports: ["${DB_PORT:-5432}:5432"]
+    volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U balise -h 127.0.0.1"], interval: 5s, retries: 10 }
+  redis:
+    image: redis:7-alpine
+    ports: ["${REDIS_PORT:-6379}:6379"]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, retries: 10 }
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment: { MINIO_ROOT_USER: minio, MINIO_ROOT_PASSWORD: minio123 }
+    ports: ["9000:9000", "9001:9001"]
+volumes: { dbdata: {} }

@@ -1,0 +1,120 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "lights.1",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    9.6433333,
+                    42.2616667
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000001978100003",
+                "posacc": null,
+                "inform": null,
+                "ninfom": null,
+                "persta": null,
+                "perend": null,
+                "catlit": null,
+                "exclit": null,
+                "mltylt": null,
+                "valnmr": 1,
+                "sectr1": null,
+                "sectr2": null,
+                "orient": null,
+                "litvis": null,
+                "litchr": 2,
+                "colour": "6",
+                "siggrp": "(5)",
+                "sigper": 20,
+                "sigseq": null,
+                "height": null,
+                "status": null
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "lights.2",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    9.64745,
+                    42.2616667
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000001978400003",
+                "posacc": null,
+                "inform": null,
+                "ninfom": null,
+                "persta": null,
+                "perend": null,
+                "catlit": null,
+                "exclit": null,
+                "mltylt": null,
+                "valnmr": 1.4,
+                "sectr1": null,
+                "sectr2": null,
+                "orient": null,
+                "litvis": null,
+                "litchr": 2,
+                "colour": "6",
+                "siggrp": "(4)",
+                "sigper": 15,
+                "sigseq": null,
+                "height": null,
+                "status": null
+            }
+        },
+        {
+            "type": "Feature",
+            "id": "lights.3",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    6.2047,
+                    42.96385
+                ]
+            },
+            "geometry_name": "geometry",
+            "properties": {
+                "inspireid": "FR000001979400003",
+                "posacc": null,
+                "inform": null,
+                "ninfom": null,
+                "persta": null,
+                "perend": null,
+                "catlit": null,
+                "exclit": null,
+                "mltylt": null,
+                "valnmr": 3,
+                "sectr1": null,
+                "sectr2": null,
+                "orient": null,
+                "litvis": null,
+                "litchr": 2,
+                "colour": "6",
+                "siggrp": "(4)",
+                "sigper": 10,
+                "sigseq": null,
+                "height": null,
+                "status": null
+            }
+        }
+    ],
+    "totalFeatures": 6452,
+    "numberMatched": 6452,
+    "numberReturned": 3,
+    "timeStamp": "2026-08-06T16:29:05.785Z",
+    "crs": {
+        "type": "name",
+        "properties": {
+            "name": "urn:ogc:def:crs:EPSG::4326"
+        }
+    }
+}
