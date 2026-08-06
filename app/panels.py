@@ -7,7 +7,7 @@ import html
 import pandas as pd
 import streamlit as st
 
-from app.data import LAYERS, Dataset, Filters, label_for, search
+from app.data import LAYERS, Dataset, Filters, label_for, search_index
 
 DISCLAIMER = (
     "<b>Ne pas utiliser pour la navigation.</b> Référentiel indicatif : les cartes officielles "
@@ -39,10 +39,14 @@ DETAIL_ROWS: tuple[tuple[str, str], ...] = (
 )
 
 
-def topbar() -> Filters:
+def topbar() -> tuple[Filters, str | None]:
+    """The search box returns a uid the moment a suggestion is chosen — no Enter needed."""
+    index = search_index()
     with st.container(key="topbar"):
-        st.text_input(
+        label = st.selectbox(
             "Recherche",
+            options=list(index),
+            index=None,
             key="query",
             placeholder="Rechercher un port, un mouillage, une balise…",
             label_visibility="collapsed",
@@ -57,7 +61,7 @@ def topbar() -> Filters:
             label_visibility="collapsed",
         )
         visitor = st.checkbox("Places visiteurs uniquement", key="visitor")
-    return Filters(layers=tuple(chosen or LAYERS), visitor_only=visitor)
+    return Filters(layers=tuple(chosen or LAYERS), visitor_only=visitor), index.get(label or "")
 
 
 def _row(label: str, value: object) -> str:
@@ -93,42 +97,26 @@ def _summary(shown: int, total: int) -> str:
     )
 
 
-def sheet(dataset: Dataset, selected: pd.Series | None, shown: int) -> str | None:
-    """The bottom sheet. Returns a uid when the sailor picks a search result."""
-    picked: str | None = None
+def sheet(dataset: Dataset, selected: pd.Series | None, shown: int) -> bool:
+    """The bottom sheet. Returns True when the sailor closes the open detail."""
+    closed = False
     with st.container(key="sheet"):
         if selected is not None:
             st.markdown(_detail(selected), unsafe_allow_html=True)
-            if st.button("Fermer", key="close"):
-                picked = ""
+            closed = st.button("Fermer", key="close")
         else:
             st.markdown(_summary(shown, dataset.total), unsafe_allow_html=True)
-            picked = _results(dataset)
+            st.markdown(
+                '<div class="note" style="margin-top:6px">Touchez un objet sur la carte pour ses '
+                "détails, ou cherchez un port ci-dessus.</div>",
+                unsafe_allow_html=True,
+            )
         # On a phone the top-right panel is folded away, so the disclaimer rides in the sheet.
         st.markdown(
             f'<div class="note mobile-only" style="margin-top:8px">{DISCLAIMER}</div>',
             unsafe_allow_html=True,
         )
-    return picked
-
-
-def _results(dataset: Dataset) -> str | None:
-    query = str(st.session_state.get("query", ""))
-    hits = search(dataset, query)
-    if not query.strip():
-        st.markdown(
-            '<div class="note" style="margin-top:6px">Touchez un objet sur la carte pour ses '
-            "détails, ou cherchez un port ci-dessus.</div>",
-            unsafe_allow_html=True,
-        )
-        return None
-    if hits.empty:
-        st.markdown('<div class="note">Aucun résultat.</div>', unsafe_allow_html=True)
-        return None
-    for _, row in hits.iterrows():
-        if st.button(f"{row['name']} — {label_for(row)}", key=f"hit-{row['uid']}"):
-            return str(row["uid"])
-    return None
+    return closed
 
 
 def legend() -> bool:

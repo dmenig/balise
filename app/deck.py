@@ -1,17 +1,35 @@
-"""The deck.gl scene. One picking layer per geometry type, so a click says what was clicked."""
+"""The deck.gl scene.
+
+Every layer's `data` is a URL under Streamlit's static server, never a DataFrame. That keeps
+the deck spec — which Streamlit re-sends on every rerun — at a few kilobytes instead of the
+4.6 MB the inlined frames cost, and lets the browser cache the geometry across reruns.
+See `app.build_static` for how the files are baked.
+"""
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
 import pandas as pd
 import pydeck as pdk
+import streamlit as st
 
-from app.data import KIND_LABELS, LAYERS, MARK_COLOURS
+from app.data import LAYERS
 
-POINTS_LAYER = "points"
-AREAS_LAYER = "areas"
+#: The picking layers, in draw order: harbours' large discs sit above the balisage.
+POINT_LAYERS = ("nav_aid", "spot", "harbour")
+AREAS_LAYER = "field"
+
+
+def static_url() -> str:
+    """Streamlit serves `static/` at `<baseUrlPath>/app/static`.
+
+    The prefix is empty on Community Cloud and on a plain `streamlit run`, but a reverse proxy
+    can mount the app under a path — reading it back beats hard-coding a leading slash that
+    would 404 there and leave the map blank.
+    """
+    base = str(st.get_option("server.baseUrlPath") or "").strip("/")
+    return f"/{base}/app/static" if base else "/app/static"
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,59 +39,44 @@ class View:
     zoom: float
 
 
-def _colour(row: pd.Series) -> list[int]:
-    """A green lateral buoy is green on the map: the mark's own colour beats a layer palette."""
-    if row["balise"] == "nav_aid" and isinstance(row["colour"], str):
-        first = row["colour"].split(",")[0].strip().lower()
-        if first in MARK_COLOURS:
-            return list(MARK_COLOURS[first])
-    return list(LAYERS[str(row["balise"])].colour)
+def _source(key: str, visitor_only: bool) -> str:
+    name = "spot-visitors" if key == "spot" and visitor_only else key
+    return f"{static_url()}/{name}.geojson"
 
 
-def _tip(row: pd.Series) -> str:
-    kind = row.get("kind")
-    bits = [
-        KIND_LABELS[kind]
-        if isinstance(kind, str) and kind in KIND_LABELS
-        else LAYERS[str(row["balise"])].short
-    ]
-    for field in ("category", "colour", "shape"):
-        value = row.get(field)
-        if isinstance(value, str) and value:
-            bits.append(value)
-    return " · ".join(bits)
-
-
-def prepare(points: pd.DataFrame) -> pd.DataFrame:
-    """Only what deck.gl needs crosses the wire: the detail panel reads the full frame instead."""
-    if points.empty:
-        return pd.DataFrame(columns=["uid", "name", "tip", "lon", "lat", "fill", "radius"])
-    # Harbours are drawn last so their larger discs sit above the balisage.
-    order = points["balise"].map({"nav_aid": 0, "spot": 1, "harbour": 2}).fillna(0)
-    frame = points.assign(_order=order).sort_values("_order")
-    return pd.DataFrame(
-        {
-            "uid": frame["uid"],
-            "name": frame["name"].fillna("Sans nom"),
-            "tip": frame.apply(_tip, axis=1),
-            "lon": frame["lon"],
-            "lat": frame["lat"],
-            "fill": frame.apply(_colour, axis=1),
-            "radius": frame["balise"].map({key: layer.radius_m for key, layer in LAYERS.items()}),
-        }
+def _points_layer(key: str, visitor_only: bool, night: bool) -> pdk.Layer:
+    return pdk.Layer(
+        "GeoJsonLayer",
+        id=key,
+        data=_source(key, visitor_only),
+        filled=True,
+        stroked=True,
+        get_fill_color="properties.fill",
+        get_point_radius="properties.radius",
+        # `pointType: 'circle'` and `pointRadiusUnits: 'meters'` are deck.gl defaults, and pydeck
+        # would rewrite those literals into `@@=` accessor expressions if we passed them.
+        point_radius_min_pixels=2.5,
+        point_radius_max_pixels=16,
+        get_line_color=[8, 20, 32, 200] if night else [255, 255, 255, 190],
+        line_width_min_pixels=1,
+        pickable=True,
+        auto_highlight=True,
     )
 
 
-def prepare_areas(areas: pd.DataFrame) -> pd.DataFrame:
-    if areas.empty:
-        return pd.DataFrame(columns=["uid", "name", "tip", "polygon"])
-    return pd.DataFrame(
-        {
-            "uid": areas["uid"],
-            "name": areas["name"].fillna("Zone de mouillage"),
-            "tip": areas.apply(_tip, axis=1),
-            "polygon": areas["polygon"].map(json.loads),
-        }
+def _areas_layer() -> pdk.Layer:
+    fill = list(LAYERS["field"].colour)
+    return pdk.Layer(
+        "GeoJsonLayer",
+        id=AREAS_LAYER,
+        data=f"{static_url()}/{AREAS_LAYER}.geojson",
+        filled=True,
+        stroked=True,
+        get_fill_color=[*fill, 55],
+        get_line_color=[*fill, 200],
+        line_width_min_pixels=1,
+        pickable=True,
+        auto_highlight=True,
     )
 
 
@@ -81,7 +84,6 @@ def _highlight(record: pd.Series | None, night: bool) -> list[pdk.Layer]:
     """A ring around the current pick, so the sheet and the map never disagree about what's open."""
     if record is None:
         return []
-    ring = [92, 192, 255] if night else [15, 111, 184]
     return [
         pdk.Layer(
             "ScatterplotLayer",
@@ -93,7 +95,7 @@ def _highlight(record: pd.Series | None, night: bool) -> list[pdk.Layer]:
             radius_max_pixels=30,
             filled=False,
             stroked=True,
-            get_line_color=ring,
+            get_line_color=[92, 192, 255] if night else [15, 111, 184],
             line_width_min_pixels=3,
             pickable=False,
         )
@@ -101,43 +103,17 @@ def _highlight(record: pd.Series | None, night: bool) -> list[pdk.Layer]:
 
 
 def build(
-    points: pd.DataFrame,
-    areas: pd.DataFrame,
+    active: tuple[str, ...],
+    visitor_only: bool,
     view: View,
     night: bool,
     selected: pd.Series | None = None,
 ) -> pdk.Deck:
-    fill = list(LAYERS["field"].colour)
-    layers = [
-        pdk.Layer(
-            "PolygonLayer",
-            id=AREAS_LAYER,
-            data=areas,
-            get_polygon="polygon",
-            get_fill_color=[*fill, 55],
-            get_line_color=[*fill, 200],
-            line_width_min_pixels=1,
-            stroked=True,
-            pickable=True,
-            auto_highlight=True,
-        ),
-        pdk.Layer(
-            "ScatterplotLayer",
-            id=POINTS_LAYER,
-            data=points,
-            get_position="[lon, lat]",
-            get_fill_color="fill",
-            get_radius="radius",
-            radius_min_pixels=2.5,
-            radius_max_pixels=16,
-            line_width_min_pixels=1,
-            get_line_color=[255, 255, 255, 190] if not night else [8, 20, 32, 200],
-            stroked=True,
-            pickable=True,
-            auto_highlight=True,
-        ),
-        *_highlight(selected, night),
-    ]
+    layers: list[pdk.Layer] = []
+    if AREAS_LAYER in active:
+        layers.append(_areas_layer())
+    layers.extend(_points_layer(key, visitor_only, night) for key in POINT_LAYERS if key in active)
+    layers.extend(_highlight(selected, night))
     return pdk.Deck(
         layers=layers,
         initial_view_state=pdk.ViewState(

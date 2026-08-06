@@ -89,14 +89,29 @@ def apply_filters(frame: pd.DataFrame, filters: Filters) -> pd.DataFrame:
     return frame[mask]
 
 
-def search(dataset: Dataset, query: str, limit: int = 8) -> pd.DataFrame:
-    """Named objects matching a free-text query, ports first — they are what people look for."""
-    if not query.strip():
-        return dataset.points.head(0)
+RANK = {"harbour": 0, "field": 1, "spot": 2, "nav_aid": 3}
+
+
+@st.cache_data(show_spinner=False)
+def search_index() -> dict[str, str]:
+    """`label -> uid` for every named object, ports first.
+
+    The whole index goes to the browser once, so the search box filters as you type instead of
+    waiting for Enter and a server round-trip.
+    """
+    dataset = load()
     frame = pd.concat([dataset.points, dataset.areas.drop(columns=["polygon"])])
-    hits = frame[frame["name"].str.contains(query.strip(), case=False, na=False, regex=False)]
-    order = hits["balise"].map({"harbour": 0, "field": 1, "spot": 2, "nav_aid": 3}).fillna(4)
-    return hits.assign(_rank=order).sort_values(["_rank", "name"]).head(limit)
+    named = frame[frame["name"].notna() & (frame["name"] != "")].copy()
+    named["_rank"] = named["balise"].map(RANK).fillna(4)
+    named = named.sort_values(["_rank", "name"])
+    index: dict[str, str] = {}
+    for _, row in named.iterrows():
+        label = f"{row['name']} — {label_for(row)}"
+        # Four marks share the name "Port Haliguen"; the suffix keeps every one reachable.
+        if label in index:
+            label = f"{label} ({row['lat']:.3f}, {row['lon']:.3f})"
+        index[label] = str(row["uid"])
+    return index
 
 
 def label_for(row: pd.Series) -> str:
