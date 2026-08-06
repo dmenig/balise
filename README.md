@@ -20,18 +20,33 @@ make web                                 # http://localhost:5173
 `make seed` needs no network: it loads a checked-in extract of real SHOM and OpenStreetMap data
 (918 objects around the Golfe du Morbihan, both licences represented). `make help` lists everything.
 
-### Demo without the stack — Streamlit
+### The public map app — Streamlit, no stack needed
 
 ```bash
 make streamlit                           # http://localhost:8501
 ```
 
-[`streamlit_app.py`](streamlit_app.py) reads that same checked-in fixture **directly** — no PostGIS,
-no API, no network — so it deploys as-is on Streamlit Community Cloud (entrypoint `streamlit_app.py`,
-dependencies [`requirements.txt`](requirements.txt)). It is a read-only shop window on the
-référentiel — filters, map, object list, licences and the "ne pas utiliser pour la navigation"
-disclaimer — and deliberately **not** a second implementation: the product is the FastAPI + PostGIS +
-MapLibre PWA described in [docs/07](docs/07-architecture.md).
+A map-first web app, not a document with a chart in it: the deck.gl canvas fills the viewport and
+every control floats over it — search, layer pills, a detail sheet that opens when you tap a mark,
+a legend, night mode. Marks are drawn in **their own colour**, so a green lateral buoy is green.
+
+It reads [`data/`](data/) directly — no PostGIS, no API, no network — so it deploys as-is on
+Streamlit Community Cloud (entrypoint `streamlit_app.py`, dependencies
+[`requirements.txt`](requirements.txt)). The dataset is **the whole of Bretagne and its
+approaches**, from Chausey to the Loire estuary: 9 775 objects (6 500 marks, 2 254 mooring spots,
+843 anchorage zones, 178 harbours) in 460 kB of Parquet. Rebuild it with `make webdata`; widen
+`WEB_BBOX` to cover more coast.
+
+| File | Role |
+|---|---|
+| [`streamlit_app.py`](streamlit_app.py) | entrypoint: state, selection, camera |
+| [`app/data.py`](app/data.py) | the Parquet tables, layer palette, search |
+| [`app/deck.py`](app/deck.py) | the deck.gl scene and its picking layers |
+| [`app/panels.py`](app/panels.py) | the floating chrome |
+| [`app/theme.py`](app/theme.py) | the CSS that makes Streamlit a full-bleed app |
+
+It stays a read-only shop window and deliberately **not** a second implementation: the product is
+the FastAPI + PostGIS + MapLibre PWA described in [docs/07](docs/07-architecture.md).
 
 ## Read in this order
 
@@ -78,6 +93,7 @@ by replacing one object. See [06](docs/06-availability-strategy.md) and [14](doc
 | REST + MVT tiles | [api/routers/](api/src/balise_api/routers/) | ✅ `/spots`, `/harbours`, `/navaids`, `/tiles`, `/tides`, `/weather`, ODbL export |
 | Corrections loop | [issues.py](api/src/balise_api/services/issues.py) | ✅ `POST /issues` → moderation queue → `overrides.yml` PR |
 | Web PWA | [web/src/](web/src/) | ✅ map, kind/boat/shelter filters, sheets, offline download + queue, night mode, i18n, prerendered harbour pages |
+| Public map app | [streamlit_app.py](streamlit_app.py) · [app/](app/) | ✅ full-bleed deck.gl map over the whole Bretagne extract, click-to-select, search, night mode, responsive; zero backend |
 | Env worker | [env_worker.py](workers/src/balise_workers/env_worker.py) | ✅ tides + weather refresh on a scheduler |
 | **The six seams** | [availability/](api/src/balise_api/services/availability/) · [liveUpdates.ts](web/src/map/liveUpdates.ts) | ✅ S1 empty tables · S2 provider port + null impl · S3 `status: null` and `501` · S4 status never in tiles · S5 neutral-by-kind UI · S6 MBFS drafted, unpublished |
 | 🔌 v2 availability plug-in | [availability/](api/src/balise_api/services/availability/) · [tests](api/tests/v2/) | Implemented behind the seam and kept green, wired by one line when M3 starts (docs/14) |

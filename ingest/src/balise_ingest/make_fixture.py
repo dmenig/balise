@@ -1,8 +1,12 @@
-"""Regenerate the checked-in Morbihan fixture from the live sources.
+"""Regenerate a checked-in extract from the live sources.
 
     uv run python -m balise_ingest.make_fixture --bbox -3.2,47.4,-2.6,47.8
+    uv run python -m balise_ingest.make_fixture --name bretagne --bbox -5.4,47.15,-1.0,49.0 \
+        --no-caps --out ingest/src/balise_ingest/fixtures/bretagne.geojson
 
 Run this deliberately, review the diff, commit it. `make seed` then needs no network at all.
+The capped default is the seed fixture (small enough to stay reviewable in git); `--no-caps`
+produces the full regional extract the web app reads.
 """
 
 from __future__ import annotations
@@ -11,7 +15,7 @@ import argparse
 import asyncio
 import json
 import logging
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -29,12 +33,20 @@ from balise_ingest.seed import FIXTURE
 from balise_ingest.sources import osm, shom
 
 DEFAULT_BBOX = "-3.2,47.4,-2.6,47.8"
-#: Enough to exercise every layer and both licences, small enough to stay reviewable in git.
-MAX_NAV_AIDS = 250
-MAX_SPOTS = 250
-MAX_FIELDS = 100
-MAX_HARBOURS = 60
 logger = logging.getLogger("make_fixture")
+
+
+@dataclass(frozen=True, slots=True)
+class Caps:
+    """Enough to exercise every layer and both licences, small enough to stay reviewable in git."""
+
+    nav_aids: int | None = 250
+    spots: int | None = 250
+    fields: int | None = 100
+    harbours: int | None = 60
+
+
+UNCAPPED = Caps(None, None, None, None)
 
 
 def _point(lon: float, lat: float) -> dict[str, Any]:
@@ -132,30 +144,31 @@ def _spot_feature(record: SpotRecord) -> dict[str, Any]:
     )
 
 
-def _features(batch: NormalisedBatch) -> list[dict[str, Any]]:
-    fields = [record for record in batch.fields if record.area_geojson][:MAX_FIELDS]
+def _features(batch: NormalisedBatch, caps: Caps) -> list[dict[str, Any]]:
+    fields = [record for record in batch.fields if record.area_geojson][: caps.fields]
     return [
-        *(_nav_aid_feature(record) for record in batch.nav_aids[:MAX_NAV_AIDS]),
-        *(_harbour_feature(record) for record in batch.harbours[:MAX_HARBOURS]),
+        *(_nav_aid_feature(record) for record in batch.nav_aids[: caps.nav_aids]),
+        *(_harbour_feature(record) for record in batch.harbours[: caps.harbours]),
         *(_field_feature(record) for record in fields),
-        *(_spot_feature(record) for record in batch.spots[:MAX_SPOTS]),
+        *(_spot_feature(record) for record in batch.spots[: caps.spots]),
     ]
 
 
-def build(bbox_raw: str) -> dict[str, Any]:
+def build(bbox_raw: str, name: str = "morbihan", caps: Caps = Caps()) -> dict[str, Any]:
     box = shom.Bbox.parse(bbox_raw)
     features: list[dict[str, Any]] = []
     for group in ("balisage", "ports", "reglementation"):
         layers = asyncio.run(shom.fetch_group(group, box))
-        features.extend(_features(shom_normaliser.normalise(group, layers, shom.SOURCES[group])))
+        batch = shom_normaliser.normalise(group, layers, shom.SOURCES[group])
+        features.extend(_features(batch, caps))
     overpass_features = osm.fetch_overpass(
         (box.min_lat, box.min_lon, box.max_lat, box.max_lon), None
     )
-    features.extend(_features(osm_normaliser.normalise(overpass_features)))
+    features.extend(_features(osm_normaliser.normalise(overpass_features), caps))
     return {
         "type": "FeatureCollection",
         "meta": {
-            "name": "morbihan",
+            "name": name,
             "bbox": bbox_raw,
             "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
             "attribution": [
@@ -171,9 +184,11 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bbox", default=DEFAULT_BBOX)
+    parser.add_argument("--name", default="morbihan")
+    parser.add_argument("--no-caps", action="store_true", help="Extract complet, sans plafonds")
     parser.add_argument("--out", type=Path, default=FIXTURE)
     arguments = parser.parse_args()
-    payload = build(arguments.bbox)
+    payload = build(arguments.bbox, arguments.name, UNCAPPED if arguments.no_caps else Caps())
     arguments.out.parent.mkdir(parents=True, exist_ok=True)
     arguments.out.write_text(
         json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=_default) + "\n",

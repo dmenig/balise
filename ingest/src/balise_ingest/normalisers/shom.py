@@ -26,8 +26,10 @@ from balise_ingest.records import (
 )
 from balise_ingest.s57_codes import (
     SMCFAC_SERVICES,
+    decode_labels,
     decode_many,
     decode_strict,
+    numeric_codes,
     validate_layer,
 )
 from balise_ingest.slugs import slugify
@@ -87,6 +89,11 @@ def _name(properties: dict[str, Any]) -> str | None:
     return str(value) if value not in (None, "") else None
 
 
+def _label(layer: str, attribute: str, properties: dict[str, Any]) -> str | None:
+    """A multi-valued category reads as "balise spéciale, mouillage" rather than raising."""
+    return ", ".join(decode_labels(layer, attribute, properties.get(attribute))) or None
+
+
 def _decimal(value: Any) -> Decimal | None:
     return Decimal(str(value)) if value not in (None, "") else None
 
@@ -117,9 +124,7 @@ def _nav_aid(
         if shape_attribute
         else None,
         topmark=topmarks.get(str(properties.get("topmar") or "")),
-        category=decode_strict(
-            feature.layer, category_attribute, properties.get(category_attribute)
-        )
+        category=_label(feature.layer, category_attribute, properties)
         if category_attribute
         else None,
         light=light,
@@ -162,7 +167,7 @@ def _anchorage_field(feature: RawFeature) -> FieldRecord | None:
         external_id=feature.external_id,
         source_id="shom.reglementation",
         kind=SpotKind.ANCHORAGE,
-        name=_name(properties) or decode_strict(feature.layer, "catach", properties.get("catach")),
+        name=_name(properties) or _label(feature.layer, "catach", properties),
         price_note=str(properties.get("ninfom")) if properties.get("ninfom") else None,
         area_geojson=feature.geometry,
     )
@@ -191,10 +196,9 @@ def _harbour(feature: RawFeature) -> HarbourRecord | None:
     point = _point(feature)
     name = _name(feature.properties)
     validate_layer(feature.layer, feature.properties)
-    category = feature.properties.get("cathaf")
-    if point is None or name is None or category in (None, ""):
-        return None
-    if int(category) not in _MARINA_CATHAF:
+    # CATHAF is list-typed: a marina that is also a fishing harbour reads "5,4" and still counts.
+    categories = numeric_codes(feature.properties.get("cathaf"))
+    if point is None or name is None or not categories & _MARINA_CATHAF:
         return None
     return HarbourRecord(
         external_id=feature.external_id,
@@ -222,17 +226,27 @@ def _berth(feature: RawFeature) -> SpotRecord | None:
     )
 
 
-def _service_point(feature: RawFeature) -> ServicePoint | None:
+def _service_points(feature: RawFeature) -> list[ServicePoint]:
+    """CATSCF is list-typed: one `smcfac` facility with `"12,13"` offers water *and* fuel."""
     point = _point(feature)
-    raw_category = feature.properties.get("catscf")
-    if point is None or raw_category in (None, ""):
-        return None
-    service = SMCFAC_SERVICES.get(int(raw_category))
-    if service is None:
-        return None
-    return ServicePoint(
-        external_id=feature.external_id, service=service, lon=point[0], lat=point[1]
+    if point is None:
+        return []
+    services = sorted(
+        {
+            service
+            for code in numeric_codes(feature.properties.get("catscf"))
+            if (service := SMCFAC_SERVICES.get(code)) is not None
+        }
     )
+    return [
+        ServicePoint(
+            external_id=f"{feature.external_id}.{service}",
+            service=service,
+            lon=point[0],
+            lat=point[1],
+        )
+        for service in services
+    ]
 
 
 def _spm_port(feature: RawFeature) -> SpmPort | None:
@@ -293,9 +307,7 @@ def normalise(
                 if berth is not None:
                     spots.append(berth)
             elif layer == "smcfac_point":
-                service = _service_point(feature)
-                if service is not None:
-                    services.append(service)
+                services.extend(_service_points(feature))
             elif layer == "liste_ports_spm_h2m":
                 spm = _spm_port(feature)
                 if spm is not None:

@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .PHONY: help up down migrate migration seed api web workers worker-once ais \
         ingest-shom ingest-osm ingest-zmel ingest-all ingest-tides ingest-weather conflate \
-        fixture audit admin mbfs test test-v1 test-v2 test-api test-ingest test-workers test-web \
+        fixture webdata audit admin mbfs test test-v1 test-v2 test-api test-ingest test-workers test-web \
         e2e e2e-install seam \
         streamlit \
         fmt fmt-check lint typecheck check tiles-flush tiles-bench prerender build-web \
@@ -12,6 +12,8 @@ SHELL := /bin/bash
 PNPM ?= pnpm
 WEB := $(PNPM) --dir web
 BBOX ?= -3.2,47.4,-2.6,47.8
+#: Bretagne plus its approaches: Chausey and the Cotentin west coast to the Loire estuary.
+WEB_BBOX ?= -5.4,47.15,-1.0,49.0
 DEPT ?= 56
 # The host port comes from .env, like docker compose does: a machine with a postgres already on
 # 5432 publishes elsewhere, and `make check` must still find *our* database (docs/11).
@@ -52,8 +54,13 @@ migration: ## Autogenerate a migration: make migration m="add …"
 seed: ## Load the checked-in Morbihan fixture (no network needed)
 	uv run balise-ingest seed
 
-fixture: ## Regenerate the Morbihan fixture from the live sources (review the diff!)
+fixture: ## Regenerate the Morbihan seed fixture from the live sources (review the diff!)
 	uv run python -m balise_ingest.make_fixture --bbox=$(BBOX)
+
+webdata: ## Rebuild data/ — the whole-Bretagne extract the Streamlit app reads (~5 min, network)
+	uv run python -m balise_ingest.make_fixture \
+	  --name bretagne --bbox=$(WEB_BBOX) --no-caps --out build/bretagne.geojson
+	uv run python -m balise_ingest.webdata --extract build/bretagne.geojson --out data
 
 ingest-shom: ## SHOM balisage + ports + réglementation for BBOX
 	uv run balise-ingest shom balisage --bbox=$(BBOX)
@@ -99,7 +106,7 @@ api: ## Run the API with reload on :8000
 web: ## Run the web app on :5173
 	$(WEB) dev
 
-streamlit: ## Demo viewer on the checked-in fixture, no db and no api (:8501)
+streamlit: ## The map app on the checked-in Bretagne extract, no db and no api (:8501)
 	uv run --with-requirements requirements.txt streamlit run streamlit_app.py
 
 workers: ## Run the v1 env worker (tides, weather)
@@ -155,12 +162,12 @@ fmt-check: ## CI gate: formatting, both stacks
 
 lint: ## CI gate: lint + types, both stacks
 	uv run ruff check .
-	uv run mypy api ingest workers ops
+	uv run mypy api ingest workers ops app streamlit_app.py
 	$(WEB) lint
 	$(WEB) typecheck
 
 typecheck: ## Types only
-	uv run mypy api ingest workers ops
+	uv run mypy api ingest workers ops app streamlit_app.py
 	$(WEB) typecheck
 
 check: fmt-check lint test ## Run before every commit

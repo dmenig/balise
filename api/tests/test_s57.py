@@ -19,6 +19,23 @@ def test_multi_valued_colours_are_split_the_shom_way() -> None:
     assert decode_many("colour", 3) == ["rouge"]
 
 
+def test_catspm_keeps_the_unassigned_38_hole() -> None:
+    # S-57 Appendix A assigns no 38. Closing the hole shifts every later code by one and
+    # relabels real Bretagne marks, so these four anchors pin the numbering down.
+    assert decode("catspm", 37) == "passage de bac"
+    assert decode("catspm", 50) == "entrée interdite"
+    assert decode("catspm", 55) == "ferme marine"
+    assert decode("catspm", 56) == "récif artificiel"
+    with pytest.raises(UnknownS57Code):
+        decode("catspm", 38)
+
+
+def test_list_typed_categories_decode_every_value() -> None:
+    # SHOM publishes `catspm="16,50"` on real special-purpose marks.
+    assert decode_many("catspm", "16,50") == ["alignement", "entrée interdite"]
+    assert decode_many("cathaf", "5,4") == ["port de plaisance", "port de pêche"]
+
+
 def test_an_unknown_code_raises_instead_of_rendering_an_unlabelled_mark() -> None:
     with pytest.raises(UnknownS57Code):
         decode("catlam", 99)

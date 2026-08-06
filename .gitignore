@@ -19,3 +19,6 @@ web/playwright-report/
 web/test-results/
 web/src/lib/api-types.ts
 .hypothesis/
+
+# intermediate regional extract for `make webdata` (data/ is committed, this is not)
+build/

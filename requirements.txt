@@ -3,3 +3,4 @@
 streamlit>=1.40
 pandas>=2.2
 pydeck>=0.9
+pyarrow>=17
