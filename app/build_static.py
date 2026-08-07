@@ -99,19 +99,23 @@ def _polygons(frame: pd.DataFrame) -> str:
     )
 
 
-def build() -> dict[str, int]:
-    points = pd.read_parquet(DATA_DIR / "points.parquet")
-    areas = pd.read_parquet(DATA_DIR / "areas.parquet")
-    STATIC_DIR.mkdir(parents=True, exist_ok=True)
+#: Every file the map can ask for, so the static build and the inline fallback cannot drift.
+COLLECTIONS = ("nav_aid", "spot", "spot-visitors", "harbour", "field")
 
-    written: dict[str, int] = {}
-    for key in ("nav_aid", "spot", "harbour"):
-        written[key] = _write(f"{key}.geojson", _points(points[points["balise"] == key]))
-    # The visitor filter swaps one URL rather than re-sending a filtered frame.
-    visitors = points[(points["balise"] == "spot") & (points["visitor"].eq(True))]
-    written["spot-visitors"] = _write("spot-visitors.geojson", _points(visitors))
-    written["field"] = _write("field.geojson", _polygons(areas))
-    return written
+
+def collection_for(name: str) -> str:
+    """The GeoJSON of one collection, built from the Parquet tables."""
+    if name == "field":
+        return _polygons(pd.read_parquet(DATA_DIR / "areas.parquet"))
+    points = pd.read_parquet(DATA_DIR / "points.parquet")
+    if name == "spot-visitors":
+        return _points(points[(points["balise"] == "spot") & (points["visitor"].eq(True))])
+    return _points(points[points["balise"] == name])
+
+
+def build() -> dict[str, int]:
+    STATIC_DIR.mkdir(parents=True, exist_ok=True)
+    return {name: _write(f"{name}.geojson", collection_for(name)) for name in COLLECTIONS}
 
 
 def _write(name: str, payload: str) -> int:

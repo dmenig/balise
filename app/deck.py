@@ -1,14 +1,18 @@
 """The deck.gl scene.
 
-Every layer's `data` is a URL under Streamlit's static server, never a DataFrame. That keeps
-the deck spec — which Streamlit re-sends on every rerun — at a few kilobytes instead of the
-4.6 MB the inlined frames cost, and lets the browser cache the geometry across reruns.
-See `app.build_static` for how the files are baked.
+A layer's `data` is normally a URL under Streamlit's static server rather than a DataFrame:
+Streamlit re-sends the whole deck spec on every rerun, so inlining the frames costs 4.6 MB a
+click instead of a couple of kilobytes, and browns out a hosted deployment. See
+`app.build_static` for how those files are baked.
+
+Where the static server is unavailable the frames are inlined instead — slower, but a map with
+marks on it beats a silently empty one.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 import pydeck as pdk
@@ -19,6 +23,9 @@ from app.data import LAYERS
 #: The picking layers, in draw order: harbours' large discs sit above the balisage.
 POINT_LAYERS = ("nav_aid", "spot", "harbour")
 AREAS_LAYER = "field"
+
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
 def static_url() -> str:
@@ -32,6 +39,18 @@ def static_url() -> str:
     return f"/{base}/app/static" if base else "/app/static"
 
 
+def static_is_served() -> bool:
+    """Can the browser actually fetch the baked GeoJSON?
+
+    A host that drops `.streamlit/config.toml`, or a checkout without `make webdata`, would
+    otherwise 404 every layer and leave a basemap with no marks on it — broken, but silently.
+    When this is false the caller inlines the frames instead: heavier per rerun, never empty.
+    """
+    if not bool(st.get_option("server.enableStaticServing")):
+        return False
+    return all((STATIC_DIR / f"{name}.geojson").is_file() for name in (*POINT_LAYERS, AREAS_LAYER))
+
+
 @dataclass(frozen=True, slots=True)
 class View:
     longitude: float
@@ -39,9 +58,21 @@ class View:
     zoom: float
 
 
-def _source(key: str, visitor_only: bool) -> str:
+def _source(key: str, visitor_only: bool) -> str | list[dict[str, object]]:
     name = "spot-visitors" if key == "spot" and visitor_only else key
-    return f"{static_url()}/{name}.geojson"
+    if static_is_served():
+        return f"{static_url()}/{name}.geojson"
+    return _inline(name)
+
+
+@st.cache_data(show_spinner=False)
+def _inline(name: str) -> list[dict[str, object]]:
+    """The same features the static file holds, read straight off disk as GeoJSON features."""
+    import json
+
+    from app.build_static import collection_for
+
+    return list(json.loads(collection_for(name))["features"])
 
 
 def _points_layer(key: str, visitor_only: bool, night: bool) -> pdk.Layer:
@@ -69,7 +100,7 @@ def _areas_layer() -> pdk.Layer:
     return pdk.Layer(
         "GeoJsonLayer",
         id=AREAS_LAYER,
-        data=f"{static_url()}/{AREAS_LAYER}.geojson",
+        data=_source(AREAS_LAYER, False),
         filled=True,
         stroked=True,
         get_fill_color=[*fill, 55],

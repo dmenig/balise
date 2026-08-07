@@ -20,6 +20,11 @@ HOME = View(longitude=-3.4, latitude=48.05, zoom=7.3)
 FOCUS_ZOOM = 14.0
 
 
+def _viewer_prefers_dark() -> bool:
+    theme = getattr(st.context, "theme", None)
+    return str(getattr(theme, "type", "light")) == "dark"
+
+
 def _row_for(dataset: Dataset, uid: str) -> pd.Series | None:
     frame = pd.concat([dataset.points, dataset.areas.drop(columns=["polygon"])])
     hit = frame[frame["uid"] == uid]
@@ -57,7 +62,10 @@ def main() -> None:
         initial_sidebar_state="collapsed",
     )
     dataset = load()
-    night = bool(st.session_state.get("night", False))
+    if "night" not in st.session_state:
+        # Follow whatever theme the viewer put Streamlit in, so the chrome never fights the app.
+        st.session_state["night"] = _viewer_prefers_dark()
+    night = bool(st.session_state["night"])
     st.markdown(css(night), unsafe_allow_html=True)
 
     filters, searched = panels.topbar()
@@ -83,6 +91,7 @@ def main() -> None:
     closed = panels.sheet(dataset, selected, shown)
     home = panels.legend()
     panels.footnote()
+    panels.diagnostics(dataset)
 
     if searched and searched != uid:
         _select(dataset, searched, fly=True)
