@@ -62,7 +62,7 @@ webdata: ## Rebuild data/ — the whole-Bretagne extract the Streamlit app reads
 	  --name bretagne --bbox=$(WEB_BBOX) --no-caps --out build/bretagne.geojson
 	uv run python -m balise_ingest.webdata --extract build/bretagne.geojson --out data
 	uv run python -m balise_ingest.places --bbox=$(WEB_BBOX) --out data
-	uv run --with-requirements requirements.txt python -m app.build_static
+	uv run python -m app.build_static
 
 ingest-shom: ## SHOM balisage + ports + réglementation for BBOX
 	uv run balise-ingest shom balisage --bbox=$(BBOX)
@@ -109,7 +109,7 @@ web: ## Run the web app on :5173
 	$(WEB) dev
 
 streamlit: ## The map app on the checked-in Bretagne extract, no db and no api (:8501)
-	uv run --with-requirements requirements.txt streamlit run streamlit_app.py
+	uv run streamlit run streamlit_app.py
 
 workers: ## Run the v1 env worker (tides, weather)
 	uv run balise-env-worker run

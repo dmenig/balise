@@ -7,6 +7,16 @@ dependencies = [
     "balise-api",
     "balise-ingest",
     "balise-workers",
+    # The Streamlit app's own dependencies, duplicated from requirements.txt on purpose.
+    # A host picking up uv.lock instead of requirements.txt — Streamlit Community Cloud
+    # prefers a lockfile — would otherwise build an environment with the API stack and no
+    # streamlit, pydeck, pandas or pyarrow in it, and run the app against whatever streamlit
+    # the platform happens to ship. Every layout rule keys off internal DOM hooks, so that
+    # renders the page as a plain document. Keep the two files in step.
+    "streamlit==1.61.1",
+    "pydeck==0.9.3",
+    "pandas>=2.2",
+    "pyarrow>=17",
 ]
 
 [dependency-groups]
