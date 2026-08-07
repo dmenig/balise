@@ -8,7 +8,7 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
-from app.data import LAYERS, Dataset, Filters, label_for, search_index
+from app.data import LAYERS, Dataset, Destination, Filters, label_for, search_index
 from app.deck import static_is_served, static_url
 
 DISCLAIMER = (
@@ -41,8 +41,8 @@ DETAIL_ROWS: tuple[tuple[str, str], ...] = (
 )
 
 
-def topbar() -> tuple[Filters, str | None]:
-    """The search box returns a uid the moment a suggestion is chosen — no Enter needed."""
+def topbar() -> tuple[Filters, Destination | None]:
+    """Returns the destination the moment a suggestion is chosen — no Enter needed."""
     index = search_index()
     with st.container(key="topbar"):
         label = st.selectbox(
@@ -50,7 +50,7 @@ def topbar() -> tuple[Filters, str | None]:
             options=list(index),
             index=None,
             key="query",
-            placeholder="Rechercher un port, un mouillage, une balise…",
+            placeholder="Rechercher un port, une ville, une île…",
             label_visibility="collapsed",
         )
         chosen = st.pills(

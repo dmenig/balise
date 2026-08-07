@@ -61,6 +61,7 @@ webdata: ## Rebuild data/ — the whole-Bretagne extract the Streamlit app reads
 	uv run python -m balise_ingest.make_fixture \
 	  --name bretagne --bbox=$(WEB_BBOX) --no-caps --out build/bretagne.geojson
 	uv run python -m balise_ingest.webdata --extract build/bretagne.geojson --out data
+	uv run python -m balise_ingest.places --bbox=$(WEB_BBOX) --out data
 	uv run --with-requirements requirements.txt python -m app.build_static
 
 ingest-shom: ## SHOM balisage + ports + réglementation for BBOX

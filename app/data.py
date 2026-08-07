@@ -89,28 +89,53 @@ def apply_filters(frame: pd.DataFrame, filters: Filters) -> pd.DataFrame:
     return frame[mask]
 
 
-RANK = {"harbour": 0, "field": 1, "spot": 2, "nav_aid": 3}
+@dataclass(frozen=True, slots=True)
+class Destination:
+    """Somewhere the search box can take you. `uid` is set only for a harbour."""
+
+    lon: float
+    lat: float
+    zoom: float
+    uid: str = ""
+
+
+#: What you can search for, and how far back the camera pulls. A harbour is as precise as it
+#: goes: nobody searches for an individual buoy, and offering 6 500 of them buried the places.
+PLACE_KINDS: dict[str, tuple[str, float]] = {
+    "city": ("Ville", 11.5),
+    "town": ("Ville", 12.5),
+    "island": ("Île", 12.0),
+    "village": ("Village", 13.5),
+}
+HARBOUR_ZOOM = 14.5
+_ORDER = {"city": 0, "town": 1, "island": 2, "harbour": 3, "village": 4}
 
 
 @st.cache_data(show_spinner=False)
-def search_index() -> dict[str, str]:
-    """`label -> uid` for every named object, ports first.
+def search_index() -> dict[str, Destination]:
+    """`label -> Destination`, ranked so towns and harbours come before hamlets.
 
-    The whole index goes to the browser once, so the search box filters as you type instead of
+    The whole index goes to the browser once, so the box filters as you type instead of
     waiting for Enter and a server round-trip.
     """
-    dataset = load()
-    frame = pd.concat([dataset.points, dataset.areas.drop(columns=["polygon"])])
-    named = frame[frame["name"].notna() & (frame["name"] != "")].copy()
-    named["_rank"] = named["balise"].map(RANK).fillna(4)
-    named = named.sort_values(["_rank", "name"])
-    index: dict[str, str] = {}
-    for _, row in named.iterrows():
-        label = f"{row['name']} — {label_for(row)}"
-        # Four marks share the name "Port Haliguen"; the suffix keeps every one reachable.
+    places = pd.read_parquet(DATA_DIR / "places.parquet")
+    harbours = load().points.query("balise == 'harbour'")
+    rows = [
+        (_ORDER[row["kind"]], str(row["name"]), PLACE_KINDS[row["kind"]][0], row, "")
+        for _, row in places.iterrows()
+    ] + [
+        (_ORDER["harbour"], str(row["name"]), "Port", row, str(row["uid"]))
+        for _, row in harbours.iterrows()
+        if pd.notna(row["name"])
+    ]
+    index: dict[str, Destination] = {}
+    for _, name, kind, row, uid in sorted(rows, key=lambda item: (item[0], item[1])):
+        label = f"{name} — {kind}"
+        # Several communes share a name with their harbour; keep both reachable.
         if label in index:
             label = f"{label} ({row['lat']:.3f}, {row['lon']:.3f})"
-        index[label] = str(row["uid"])
+        zoom = HARBOUR_ZOOM if uid else PLACE_KINDS[row["kind"]][1]
+        index[label] = Destination(float(row["lon"]), float(row["lat"]), zoom, uid)
     return index
 
 

@@ -17,7 +17,6 @@ from app.deck import AREAS_LAYER, POINT_LAYERS, View, build
 from app.theme import css
 
 HOME = View(longitude=-3.4, latitude=48.05, zoom=7.3)
-FOCUS_ZOOM = 14.0
 
 
 def _viewer_prefers_dark() -> bool:
@@ -44,13 +43,8 @@ def _picked_uid(event: object) -> str | None:
     return None
 
 
-def _select(dataset: Dataset, uid: str, fly: bool) -> None:
+def _select(uid: str) -> None:
     st.session_state["selected"] = uid
-    target = _row_for(dataset, uid) if uid else None
-    if fly and target is not None:
-        st.session_state["view"] = View(
-            longitude=float(target["lon"]), latitude=float(target["lat"]), zoom=FOCUS_ZOOM
-        )
     st.rerun()
 
 
@@ -84,7 +78,7 @@ def main() -> None:
 
     clicked = _picked_uid(event)
     if clicked is not None and clicked != uid:
-        _select(dataset, clicked, fly=False)
+        _select(clicked)
 
     # The count still comes from the frames — the map reads the same objects from static files.
     shown = len(apply_filters(dataset.points, filters)) + len(apply_filters(dataset.areas, filters))
@@ -93,13 +87,20 @@ def main() -> None:
     panels.footnote()
     panels.diagnostics(dataset)
 
-    if searched and searched != uid:
-        _select(dataset, searched, fly=True)
+    # Searching moves the camera and nothing else: whatever layers are on stay on, so the
+    # sailor lands on a place with every nearby mark, mooring and zone still drawn. Only a
+    # harbour — the most precise thing you can search for — also opens its detail.
+    if searched is not None and st.session_state.get("flown_to") != searched:
+        st.session_state["flown_to"] = searched
+        st.session_state["view"] = View(searched.lon, searched.lat, searched.zoom)
+        st.session_state["selected"] = searched.uid
+        st.rerun()
     if closed:
-        _select(dataset, "", fly=False)
+        _select("")
     if home:
         st.session_state["view"] = HOME
-        _select(dataset, "", fly=False)
+        st.session_state["flown_to"] = None
+        _select("")
 
 
 main()
