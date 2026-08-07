@@ -11,6 +11,7 @@ marks on it beats a silently empty one.
 
 from __future__ import annotations
 
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -39,16 +40,27 @@ def static_url() -> str:
     return f"/{base}/app/static" if base else "/app/static"
 
 
+@st.cache_resource(show_spinner=False)
 def static_is_served() -> bool:
-    """Can the browser actually fetch the baked GeoJSON?
+    """Can the browser actually fetch the baked GeoJSON? Asked by fetching one, not by asking.
 
-    A host that drops `.streamlit/config.toml`, or a checkout without `make webdata`, would
-    otherwise 404 every layer and leave a basemap with no marks on it — broken, but silently.
-    When this is false the caller inlines the frames instead: heavier per rerun, never empty.
+    A host that drops `.streamlit/config.toml` — or honours the option but never mounts the
+    route — would 404 every layer and leave a basemap with no marks on it: broken, and
+    silently so. Trusting `server.enableStaticServing` cannot tell those apart, so this hits
+    the route over the loopback and believes the answer. When it is false the caller inlines
+    the features instead: heavier per rerun, never empty.
     """
+    if not all((STATIC_DIR / f"{n}.geojson").is_file() for n in (*POINT_LAYERS, AREAS_LAYER)):
+        return False
     if not bool(st.get_option("server.enableStaticServing")):
         return False
-    return all((STATIC_DIR / f"{name}.geojson").is_file() for name in (*POINT_LAYERS, AREAS_LAYER))
+    port = st.get_option("server.port")
+    probe = f"http://127.0.0.1:{port}{static_url()}/harbour.geojson"
+    try:
+        with urllib.request.urlopen(probe, timeout=4) as response:
+            return int(response.status) == 200
+    except OSError:
+        return False
 
 
 @dataclass(frozen=True, slots=True)
