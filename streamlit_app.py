@@ -81,33 +81,35 @@ def main() -> None:
             height=900,
         )
 
-    hit = _picked(event)
-    if hit is not None:
-        clicked = _uid_at(dataset, *hit)
-        if clicked and clicked != uid:
-            _select(clicked)
-
-    # The count still comes from the frames — the map reads the same objects from static files.
+    # The count comes from the frames; the map draws the same objects from the deck spec.
     shown = len(apply_filters(dataset.points, filters)) + len(apply_filters(dataset.areas, filters))
     closed = panels.sheet(dataset, selected, shown)
-    home = panels.legend()
-    panels.footnote()
+    panels.legend()
     panels.diagnostics(dataset)
 
+    # Every widget is instantiated above, before anything can rerun. Streamlit discards the
+    # session-state entry of a widget it did not see on a run, so rerunning from the map click
+    # — which sits above the legend — used to drop `night` and switch the map back to day.
+    # deck.gl keeps the last pick in widget state and hands it back on every rerun, so acting
+    # on its mere presence re-opened the sheet the instant "Fermer" closed it. Only a *change*
+    # is an event — and a change to nothing means the sailor tapped open water, which closes.
+    hit = _picked(event)
+    moved = hit != st.session_state.get("last_pick")
+    st.session_state["last_pick"] = hit
+
+    if closed:
+        _select("")
     # Searching moves the camera and nothing else: whatever layers are on stay on, so the
     # sailor lands on a place with every nearby mark, mooring and zone still drawn. Only a
     # harbour — the most precise thing you can search for — also opens its detail.
-    if searched is not None and st.session_state.get("flown_to") != searched:
+    elif searched is not None and st.session_state.get("flown_to") != searched:
         st.session_state["flown_to"] = searched
         st.session_state["view"] = View(searched.lon, searched.lat, searched.zoom)
         st.session_state["selected"] = searched.uid
+        st.session_state["search_open"] = False
         st.rerun()
-    if closed:
-        _select("")
-    if home:
-        st.session_state["view"] = HOME
-        st.session_state["flown_to"] = None
-        _select("")
+    elif moved:
+        _select(_uid_at(dataset, *hit) if hit else "")
 
 
 main()

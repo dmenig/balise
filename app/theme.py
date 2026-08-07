@@ -61,19 +61,18 @@ html, body, [data-testid="stAppViewContainer"] { height: 100%; overflow: hidden;
 /* ---- floating panels ------------------------------------------------------
    Each panel IS its keyed container: Streamlit closes an injected <div> at the end of the
    markdown block that opened it, so a wrapper element can never contain the widgets. */
-.st-key-topbar, .st-key-sheet, .st-key-legend, .st-key-footnote, .st-key-debug {
+.st-key-topbar, .st-key-sheet, .st-key-legend, .st-key-debug {
   position: fixed; z-index: 30; color: var(--ink);
   background: var(--card); backdrop-filter: blur(14px) saturate(140%);
   border: 1px solid var(--edge); border-radius: 16px; box-shadow: var(--shadow);
   padding: 11px 13px !important;
 }
-.st-key-topbar { top: 12px; left: 12px; width: min(390px, calc(100vw - 24px)); }
+.st-key-topbar { top: 12px; left: 12px; width: max-content; max-width: calc(100vw - 24px); }
 .st-key-sheet {
   left: 12px; bottom: 12px; width: min(390px, calc(100vw - 24px));
   max-height: calc(100dvh - 230px); overflow-y: auto; padding-bottom: 14px !important;
 }
 .st-key-legend { right: 12px; bottom: 12px; width: max-content; }
-.st-key-footnote { right: 12px; top: 12px; width: min(290px, 44vw); }
 .st-key-debug { left: 50%; top: 12px; transform: translateX(-50%); width: max-content; }
 
 .st-key-topbar [data-testid="stVerticalBlock"], .st-key-sheet [data-testid="stVerticalBlock"],
@@ -92,8 +91,14 @@ html, body, [data-testid="stAppViewContainer"] { height: 100%; overflow: hidden;
   .st-key-legend {
     right: 8px; bottom: auto; top: 50%; transform: translateY(-50%); padding: 8px !important;
   }
-  .st-key-footnote { display: none; }
   .mobile-only { display: block; }
+}
+
+.st-key-search_toggle button { width: max-content !important; border-radius: 999px !important; }
+.st-key-topbar [data-testid="stSelectbox"] { min-width: min(340px, calc(100vw - 60px)); }
+.st-key-legend [data-testid="stPopover"] button {
+  border: 0 !important; background: transparent !important; color: var(--muted) !important;
+  font-size: 11.5px !important; padding: 2px 0 !important;
 }
 
 /* ---- the sheet ----------------------------------------------------------- */

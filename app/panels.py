@@ -41,17 +41,26 @@ DETAIL_ROWS: tuple[tuple[str, str], ...] = (
 
 
 def topbar() -> tuple[Filters, Destination | None]:
-    """Returns the destination the moment a suggestion is chosen — no Enter needed."""
-    index = search_index()
+    """Returns the destination the moment a suggestion is chosen — no Enter needed.
+
+    The field stays folded away behind its icon: the map is the app, and a search box you are
+    not using is just chrome over the chart.
+    """
     with st.container(key="topbar"):
-        label = st.selectbox(
-            "Recherche",
-            options=list(index),
-            index=None,
-            key="query",
-            placeholder="Rechercher un port, une ville, une île…",
-            label_visibility="collapsed",
-        )
+        open_search = bool(st.session_state.get("search_open", False))
+        if st.button("✕  Recherche" if open_search else "🔍  Rechercher", key="search_toggle"):
+            open_search = not open_search
+            st.session_state["search_open"] = open_search
+        label = None
+        if open_search:
+            label = st.selectbox(
+                "Recherche",
+                options=list(search_index()),
+                index=None,
+                key="query",
+                placeholder="Un port, une ville, une île…",
+                label_visibility="collapsed",
+            )
         chosen = st.pills(
             "Couches",
             options=list(LAYERS),
@@ -62,7 +71,15 @@ def topbar() -> tuple[Filters, Destination | None]:
             label_visibility="collapsed",
         )
         visitor = st.checkbox("Places visiteurs uniquement", key="visitor")
-    return Filters(layers=tuple(chosen or LAYERS), visitor_only=visitor), index.get(label or "")
+    destination = search_index().get(label) if label else None
+    return Filters(layers=tuple(chosen or LAYERS), visitor_only=visitor), destination
+
+
+def _title(record: pd.Series) -> str:
+    """A missing name arrives as NaN, and NaN is a float — truthy, so `or` let it through
+    and the sheet announced "nan"."""
+    name = record["name"]
+    return str(name) if isinstance(name, str) and name else "Sans nom"
 
 
 def _row(label: str, value: object) -> str:
@@ -84,7 +101,7 @@ def _detail(record: pd.Series) -> str:
     )
     return (
         f'<div class="sheet-kicker">{html.escape(label_for(record))}</div>'
-        f'<div class="sheet-title">{html.escape(str(record["name"] or "Sans nom"))}</div>'
+        f'<div class="sheet-title">{html.escape(_title(record))}</div>'
         f"<dl>{rows}{link}</dl>"
         f'<div class="note" style="margin-top:8px">{record["lat"]:.5f}, {record["lon"]:.5f}'
         f" · source {html.escape(str(record['source_id']))}</div>"
@@ -108,20 +125,13 @@ def sheet(dataset: Dataset, selected: pd.Series | None, shown: int) -> bool:
         else:
             st.markdown(_summary(shown, dataset.total), unsafe_allow_html=True)
             st.markdown(
-                '<div class="note" style="margin-top:6px">Touchez un objet sur la carte pour ses '
-                "détails, ou cherchez un port ci-dessus.</div>",
+                '<div class="note" style="margin-top:6px">Touchez un objet pour ses détails.</div>',
                 unsafe_allow_html=True,
             )
-        # On a phone the top-right panel is folded away, so the disclaimer rides in the sheet.
-        st.markdown(
-            f'<div class="note mobile-only" style="margin-top:8px">{DISCLAIMER}</div>',
-            unsafe_allow_html=True,
-        )
     return closed
 
 
-def legend() -> bool:
-    """Returns True when the sailor asks to go back to the whole-Bretagne view."""
+def legend() -> None:
     with st.container(key="legend"):
         lines = "".join(
             f'<div class="legend-line"><span class="dot" style="background:rgb'
@@ -129,9 +139,15 @@ def legend() -> bool:
             for layer in LAYERS.values()
         )
         st.markdown(lines, unsafe_allow_html=True)
-        home = st.button("Vue d'ensemble", key="home")
         st.checkbox("Mode nuit", key="night")
-    return home
+        # The licences and the safety notice have to stay reachable — ODbL says so — but they
+        # do not have to sit on the chart. One tap, the way a transit app hides its legal text.
+        with st.popover("ⓘ  À propos", use_container_width=True):
+            st.markdown(
+                f'<div class="note">{DISCLAIMER}</div>'
+                f'<div class="note" style="margin-top:8px">{ATTRIBUTION}</div>',
+                unsafe_allow_html=True,
+            )
 
 
 def diagnostics(dataset: Dataset) -> None:
@@ -150,14 +166,5 @@ def diagnostics(dataset: Dataset) -> None:
         st.markdown(
             '<div class="note"><b>Diagnostic</b></div>'
             + "".join(f'<div class="note">{k} : <b>{v}</b></div>' for k, v in rows.items()),
-            unsafe_allow_html=True,
-        )
-
-
-def footnote() -> None:
-    with st.container(key="footnote"):
-        st.markdown(
-            f'<div class="note">{DISCLAIMER}</div>'
-            f'<div class="note" style="margin-top:6px;font-size:10px">{ATTRIBUTION}</div>',
             unsafe_allow_html=True,
         )
