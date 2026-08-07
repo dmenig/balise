@@ -13,7 +13,7 @@ import streamlit as st
 
 from app import panels
 from app.data import Dataset, apply_filters, load
-from app.deck import AREAS_LAYER, POINT_LAYERS, View, build
+from app.deck import View, build, layer_ids
 from app.theme import css
 
 HOME = View(longitude=-3.4, latitude=48.05, zoom=7.3)
@@ -30,16 +30,21 @@ def _row_for(dataset: Dataset, uid: str) -> pd.Series | None:
     return None if hit.empty else hit.iloc[0]
 
 
-def _picked_uid(event: object) -> str | None:
+def _uid_at(dataset: Dataset, layer: str, index: int) -> str:
+    """Rows travel with their positional index, not a 30-character uid — resolve it here."""
+    frame = dataset.areas if layer == "field" else dataset.points
+    return str(frame.loc[index, "uid"]) if index in frame.index else ""
+
+
+def _picked(event: object) -> tuple[str, int] | None:
     """deck.gl hands the clicked GeoJSON feature back through the widget state, per layer id."""
     objects = getattr(getattr(event, "selection", None), "objects", None)
     if not isinstance(objects, dict):
         return None
-    for layer in (*POINT_LAYERS, AREAS_LAYER):
+    for layer in layer_ids():
         picked = objects.get(layer)
         if picked:
-            properties = picked[0].get("properties", picked[0])
-            return str(properties["uid"])
+            return layer, int(picked[0]["i"])
     return None
 
 
@@ -76,9 +81,11 @@ def main() -> None:
             height=900,
         )
 
-    clicked = _picked_uid(event)
-    if clicked is not None and clicked != uid:
-        _select(clicked)
+    hit = _picked(event)
+    if hit is not None:
+        clicked = _uid_at(dataset, *hit)
+        if clicked and clicked != uid:
+            _select(clicked)
 
     # The count still comes from the frames — the map reads the same objects from static files.
     shown = len(apply_filters(dataset.points, filters)) + len(apply_filters(dataset.areas, filters))

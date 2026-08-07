@@ -1,66 +1,37 @@
 """The deck.gl scene.
 
-A layer's `data` is normally a URL under Streamlit's static server rather than a DataFrame:
-Streamlit re-sends the whole deck spec on every rerun, so inlining the frames costs 4.6 MB a
-click instead of a couple of kilobytes, and browns out a hosted deployment. See
-`app.build_static` for how those files are baked.
-
-Where the static server is unavailable the frames are inlined instead — slower, but a map with
-marks on it beats a silently empty one.
+Marks are split across one layer per colour so that the colour and radius are layer constants
+instead of per-row fields — see `app.features` for why the payload shape matters. Picking
+returns the row's positional index, which the caller looks up in the Parquet frame.
 """
 
 from __future__ import annotations
 
-import urllib.request
+import json
 from dataclasses import dataclass
-from pathlib import Path
 
 import pandas as pd
 import pydeck as pdk
-import streamlit as st
 
 from app.data import LAYERS
+from app.features import Group, area_rows, point_groups, visitor_indices
 
-#: The picking layers, in draw order: harbours' large discs sit above the balisage.
-POINT_LAYERS = ("nav_aid", "spot", "harbour")
 AREAS_LAYER = "field"
 
 
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+class CompactDeck(pdk.Deck):  # type: ignore[misc]  # pydeck ships no stubs
+    """A Deck that serialises without pretty-printing.
 
-
-def static_url() -> str:
-    """Streamlit serves `static/` at `<baseUrlPath>/app/static`.
-
-    The prefix is empty on Community Cloud and on a plain `streamlit run`, but a reverse proxy
-    can mount the app under a path — reading it back beats hard-coding a leading slash that
-    would 404 there and leave the map blank.
+    `pydeck.bindings.json_tools` dumps with `indent=2`, and Streamlit puts that string
+    straight into the protobuf it sends (`deck_gl_json_chart.py`: `spec = pydeck_obj.to_json()`).
+    At Bretagne scale the indentation alone is 1.8 MB of spaces on the wire per rerun — two
+    thirds of the message, carrying nothing.
     """
-    base = str(st.get_option("server.baseUrlPath") or "").strip("/")
-    return f"/{base}/app/static" if base else "/app/static"
 
+    def to_json(self) -> str:
+        from pydeck.bindings.json_tools import default_serialize
 
-@st.cache_resource(show_spinner=False)
-def static_is_served() -> bool:
-    """Can the browser actually fetch the baked GeoJSON? Asked by fetching one, not by asking.
-
-    A host that drops `.streamlit/config.toml` — or honours the option but never mounts the
-    route — would 404 every layer and leave a basemap with no marks on it: broken, and
-    silently so. Trusting `server.enableStaticServing` cannot tell those apart, so this hits
-    the route over the loopback and believes the answer. When it is false the caller inlines
-    the features instead: heavier per rerun, never empty.
-    """
-    if not all((STATIC_DIR / f"{n}.geojson").is_file() for n in (*POINT_LAYERS, AREAS_LAYER)):
-        return False
-    if not bool(st.get_option("server.enableStaticServing")):
-        return False
-    port = st.get_option("server.port")
-    probe = f"http://127.0.0.1:{port}{static_url()}/harbour.geojson"
-    try:
-        with urllib.request.urlopen(probe, timeout=4) as response:
-            return int(response.status) == 200
-    except OSError:
-        return False
+        return json.dumps(self, sort_keys=True, default=default_serialize, separators=(",", ":"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,36 +41,26 @@ class View:
     zoom: float
 
 
-def _source(key: str, visitor_only: bool) -> str | list[dict[str, object]]:
-    name = "spot-visitors" if key == "spot" and visitor_only else key
-    if static_is_served():
-        return f"{static_url()}/{name}.geojson"
-    return _inline(name)
+def _balise_of(group: Group) -> str:
+    return group.key if group.key in ("spot", "harbour") else "nav_aid"
 
 
-@st.cache_data(show_spinner=False)
-def _inline(name: str) -> list[dict[str, object]]:
-    """The same features the static file holds, read straight off disk as GeoJSON features."""
-    import json
-
-    from app.build_static import collection_for
-
-    return list(json.loads(collection_for(name))["features"])
+def layer_ids() -> list[str]:
+    """Every pickable layer id, so a click can be read back whichever layer it landed on."""
+    return [group.key for group in point_groups()] + [AREAS_LAYER]
 
 
-def _points_layer(key: str, visitor_only: bool, night: bool) -> pdk.Layer:
+def _points_layer(group: Group, rows: list[dict[str, object]], night: bool) -> pdk.Layer:
     return pdk.Layer(
-        "GeoJsonLayer",
-        id=key,
-        data=_source(key, visitor_only),
-        filled=True,
+        "ScatterplotLayer",
+        id=group.key,
+        data=rows,
+        get_position="p",
+        get_fill_color=list(group.colour),
+        get_radius=group.radius_m,
+        radius_min_pixels=2.5,
+        radius_max_pixels=16,
         stroked=True,
-        get_fill_color="properties.fill",
-        get_point_radius="properties.radius",
-        # `pointType: 'circle'` and `pointRadiusUnits: 'meters'` are deck.gl defaults, and pydeck
-        # would rewrite those literals into `@@=` accessor expressions if we passed them.
-        point_radius_min_pixels=2.5,
-        point_radius_max_pixels=16,
         get_line_color=[8, 20, 32, 200] if night else [255, 255, 255, 190],
         line_width_min_pixels=1,
         pickable=True,
@@ -110,14 +71,14 @@ def _points_layer(key: str, visitor_only: bool, night: bool) -> pdk.Layer:
 def _areas_layer() -> pdk.Layer:
     fill = list(LAYERS["field"].colour)
     return pdk.Layer(
-        "GeoJsonLayer",
+        "PolygonLayer",
         id=AREAS_LAYER,
-        data=_source(AREAS_LAYER, False),
-        filled=True,
-        stroked=True,
+        data=area_rows(),
+        get_polygon="polygon",
         get_fill_color=[*fill, 55],
         get_line_color=[*fill, 200],
         line_width_min_pixels=1,
+        stroked=True,
         pickable=True,
         auto_highlight=True,
     )
@@ -131,8 +92,8 @@ def _highlight(record: pd.Series | None, night: bool) -> list[pdk.Layer]:
         pdk.Layer(
             "ScatterplotLayer",
             id="highlight",
-            data=[{"lon": float(record["lon"]), "lat": float(record["lat"])}],
-            get_position="[lon, lat]",
+            data=[{"p": [float(record["lon"]), float(record["lat"])]}],
+            get_position="p",
             get_radius=180,
             radius_min_pixels=13,
             radius_max_pixels=30,
@@ -152,12 +113,22 @@ def build(
     night: bool,
     selected: pd.Series | None = None,
 ) -> pdk.Deck:
+    keep = visitor_indices() if visitor_only else None
     layers: list[pdk.Layer] = []
     if AREAS_LAYER in active:
         layers.append(_areas_layer())
-    layers.extend(_points_layer(key, visitor_only, night) for key in POINT_LAYERS if key in active)
+    for group in point_groups():
+        if _balise_of(group) not in active:
+            continue
+        # `visitor` only exists on spots; marks and harbours stay on as landmarks.
+        rows = (
+            [row for row in group.rows if row["i"] in keep]
+            if keep is not None and group.key == "spot"
+            else group.rows
+        )
+        layers.append(_points_layer(group, rows, night))
     layers.extend(_highlight(selected, night))
-    return pdk.Deck(
+    return CompactDeck(
         layers=layers,
         initial_view_state=pdk.ViewState(
             longitude=view.longitude, latitude=view.latitude, zoom=view.zoom, pitch=0, bearing=0
@@ -165,7 +136,7 @@ def build(
         map_provider="carto",
         map_style="dark" if night else "light",
         tooltip={
-            "html": "<b>{name}</b><br/>{tip}",
+            "html": "<b>{n}</b>",
             "style": {
                 "backgroundColor": "rgba(10,29,46,0.92)",
                 "color": "#fff",

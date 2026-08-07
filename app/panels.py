@@ -9,7 +9,6 @@ import pydeck as pdk
 import streamlit as st
 
 from app.data import LAYERS, Dataset, Destination, Filters, label_for, search_index
-from app.deck import static_is_served, static_url
 
 DISCLAIMER = (
     "<b>Ne pas utiliser pour la navigation.</b> Référentiel indicatif : les cartes officielles "
@@ -139,13 +138,10 @@ def diagnostics(dataset: Dataset) -> None:
     """`?debug=1` — what the host is actually doing, for when the app misbehaves remotely."""
     if not st.query_params.get("debug"):
         return
-    served = static_is_served()
     rows = {
         "streamlit": st.__version__,
         "pydeck": pdk.__version__,
         "pandas": pd.__version__,
-        "static servi": f"{served} ({static_url()})",
-        "mode carte": "fichiers statiques" if served else "données en ligne (repli)",
         "config.toml lu": st.get_option("theme.primaryColor") == "#0f6fb8",
         "thème visiteur": getattr(getattr(st.context, "theme", None), "type", "?"),
         "objets": dataset.total,

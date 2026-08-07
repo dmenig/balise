@@ -35,12 +35,14 @@ Streamlit Community Cloud (entrypoint `streamlit_app.py`, dependencies
 [`requirements.txt`](requirements.txt)). The dataset is **the whole of Bretagne and its
 approaches**, from Chausey to the Loire estuary: 9 775 objects (6 500 marks, 2 254 mooring spots,
 843 anchorage zones, 178 harbours) in 460 kB of Parquet. Rebuild it with `make webdata`; widen
-`WEB_BBOX` to cover more coast.
+`WEB_BBOX` to cover more coast. A gazetteer of 746 coastal places rides alongside so the
+search box has somewhere to send you.
 
 | File | Role |
 |---|---|
 | [`streamlit_app.py`](streamlit_app.py) | entrypoint: state, selection, camera |
 | [`app/data.py`](app/data.py) | the Parquet tables, layer palette, search |
+| [`app/features.py`](app/features.py) | the rows deck.gl draws, shaped for a small payload |
 | [`app/deck.py`](app/deck.py) | the deck.gl scene and its picking layers |
 | [`app/panels.py`](app/panels.py) | the floating chrome |
 | [`app/theme.py`](app/theme.py) | the CSS that makes Streamlit a full-bleed app |
