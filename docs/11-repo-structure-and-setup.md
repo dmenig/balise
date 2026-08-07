@@ -50,6 +50,17 @@ balises/
 │   │   ├── conflate.py
 │   │   └── overrides.yml
 │   └── tests/
+├── streamlit_app.py             ← public map app: entrypoint (state, selection, camera)
+├── app/                         ← and its modules — no PostGIS, no API, no network
+│   ├── data.py                  Parquet tables, palette, place + harbour search index
+│   ├── features.py              the rows deck.gl draws, shaped for a small payload
+│   ├── deck.py                  the deck.gl scene, CompactDeck, picking layers
+│   ├── panels.py                floating chrome: search, sheet, legend, ⓘ
+│   └── theme.py                 the CSS that makes Streamlit full-bleed
+├── data/                        ← what that app reads (committed, built by `make webdata`)
+│   ├── points.parquet           8 932 marks, spots and harbours
+│   ├── areas.parquet            843 anchorage zones
+│   └── places.parquet           746 coastal places for the search box
 ├── workers/                     ← env-worker (tides, weather); 🔌 v2 adds status-worker, ais-listener
 ├── web/                         ← React PWA
 │   ├── package.json

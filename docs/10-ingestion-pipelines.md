@@ -158,3 +158,40 @@ uv run balise-ingest conflate --kind mooring_buoy --explain spot_18421
 ```
 
 `--explain` prints the conflation trace for one object. Use it before touching the rules.
+
+
+---
+
+## The app dataset (`make webdata`)
+
+The Streamlit shop window does not read PostGIS. Three commands build what it does read, all
+network-bound and all run deliberately, never in CI:
+
+| Step | Module | Output |
+|---|---|---|
+| Extract, uncapped, over `WEB_BBOX` | `make_fixture --no-caps` | `build/bretagne.geojson` (4.8 MB) |
+| Trim to the dozen columns the UI shows | `webdata.py` | `data/points.parquet`, `data/areas.parquet` (460 kB) |
+| Coastal gazetteer for the search box | `places.py` | `data/places.parquet` (23 kB) |
+
+`make_fixture` gained `--name`, `--no-caps` and `--out` for this; its defaults still produce the
+capped Morbihan seed fixture unchanged.
+
+## S-57 decoding: a correction worth remembering
+
+Widening the bbox past Morbihan broke the ingest three times, and each failure was a real defect
+that the small extract had never reached:
+
+1. **`CATSPM` was renumbered from code 38 up.** S-57 Appendix A assigns no 38; the table closed
+   that hole and shifted 14 labels by one. It mislabelled live data — `catspm=55`, the commonest
+   value in Bretagne at 247 marks, read "récif artificiel" when it is **ferme marine**
+   (aquaculture), and `catspm=50` at 152 marks read "travaux en cours" when it is **entrée
+   interdite**, a prohibition. Verified against GDAL's `s57expectedinput.csv`. All 15 code tables
+   were audited the same way; `catlmk` 21 and `litchr` 21–22 sit in genuine official gaps with
+   everything else aligned and are national extensions, left alone.
+2. **List-typed attributes were decoded as scalars.** `CATSPM`, `CATACH`, `CATLMK` and `CATHAF`
+   are list types: a mark carrying `"16,50"` aborted the whole job.
+3. **`int()` on a list attribute.** A harbour with `cathaf="5,14"` crashed; an `smcfac` facility
+   with `catscf="12,13"` offers water *and* fuel and now yields one `ServicePoint` each.
+
+The numbering is pinned by four anchor codes in `api/tests/test_s57.py` — it is the kind of bug
+that comes back silently.

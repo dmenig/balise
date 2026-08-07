@@ -52,6 +52,29 @@ mooring will look for someone to blame.
 - Do not reproduce official SHOM raster charts unless we buy the licence.
 - CGU with a liability limitation clause; professional liability insurance (RC pro) before launch.
 
+### Divergence on record — the Streamlit shop window
+
+The public map app ([README](../README.md), `streamlit_app.py`) does **not** carry the permanent
+banner or the blocking first-use acceptance required above. Both the disclaimer and the
+attribution sit one tap away behind an ⓘ in the corner, on the grounds that a panel covering the
+chart was the single loudest complaint about the app and that transit apps place their legal text
+the same way.
+
+This is a deliberate deviation, not an oversight, and it is **not settled**:
+
+- The ODbL and Etalab attribution requirement is met — "reasonably calculated to make any person
+  aware" does not demand it be permanently on screen, only reachable. This part is fine.
+- The *safety* notice is the exposed one. §3 exists because a sailor who runs aground looks for
+  someone to blame, and "it was behind an icon" is a weaker position than "it was on screen and
+  they clicked through it".
+- Scope limits the exposure: the shop window is read-only, shows no availability and no derived
+  depths, and is not the product. The PWA ([09 §UX rules 7](09-frontend-and-map.md)) keeps the
+  strip and the blocking gate.
+
+**Resolve with the lawyer review before public launch** (M3, [14](14-roadmap.md)): either the
+banner comes back for the public app, or the review confirms the ⓘ is sufficient for a
+referential that displays no depth and no status.
+
 ## 4. GDPR / RGPD
 
 We process **geolocation of individuals** — sensitive by nature under CNIL guidance.

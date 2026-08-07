@@ -126,3 +126,44 @@ Kept in `ops/runbooks/`. **v1 runbooks:**
 - Photo uploads: type sniffing, size cap, EXIF strip, served from a separate origin.
 - Dependency scanning (`pip-audit`, `pnpm audit`) in CI; weekly base-image rebuild.
 - No PII in logs; IPs truncated ([04 §4](04-licensing-and-legal.md)).
+
+
+---
+
+## Streamlit Community Cloud (the public map app)
+
+Entrypoint `streamlit_app.py`, branch `main`, no secrets, no backend. It cost five rounds of
+blind debugging to get right, so the traps are written down.
+
+**The dependency file is the one that bites.** Cloud picks *one* file and prefers a lockfile to
+`requirements.txt`. This repo ships `uv.lock` at the root, and that lockfile covers the monorepo
+workspace — `balise-api`, `balise-ingest`, `balise-workers` — with **no streamlit, pydeck, pandas
+or pyarrow in it**. A build resolving it installs the API stack and then runs the app against
+whatever streamlit the platform ships. Every layout rule keys off internal DOM hooks
+(`.st-key-*`, `data-testid=…`), so a different release drops the page back into document flow:
+chrome unstyled, night mode inert, search box unusable — and `requirements.txt` pins do nothing
+because they are never read. The root `pyproject.toml` therefore declares the four app
+dependencies alongside the workspace members; **keep it and `requirements.txt` in step**.
+
+**Pin, do not floor, `streamlit` and `pydeck`.** The layout depends on undocumented DOM, and
+pydeck decides which arguments become `@@=` accessor expressions.
+
+**Do not assume the host serves `static/`.** A host can register Streamlit's static route
+internally and still not expose it through its edge, which returns 200 to anything the server
+probes and HTML to the browser. The map then draws an empty basemap and reports nothing. The app
+carries its data in the deck spec for this reason; see the payload notes in the
+[README](../README.md).
+
+**Redeploying after a dependency change: delete the app and recreate it.** Reboot commonly reuses
+the cached environment, which is exactly what you are trying to replace.
+
+**`?debug=1`** renders the installed streamlit/pydeck/pandas versions, whether `.streamlit/config.toml`
+was read, and the viewer's theme — one screenshot answers what a remote host is doing.
+
+Verify a change the way Cloud will build it, not the way your dev shell does:
+
+```bash
+git clone --depth 1 <repo> /tmp/clean && cd /tmp/clean
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/streamlit run streamlit_app.py
+```

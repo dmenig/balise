@@ -106,7 +106,8 @@ Consequences that are **binding on v1 design work**:
    position is never sent to the server ([04](04-licensing-and-legal.md)). Without it, the row falls
    back to what the referential knows.
 7. The disclaimer strip ([04 §3](04-licensing-and-legal.md)) is part of the map chrome, always
-   visible, not a dismissible toast.
+   visible, not a dismissible toast. **This applies to the PWA.** The Streamlit shop window puts
+   it behind an ⓘ instead — a divergence recorded in [04 §3](04-licensing-and-legal.md).
 
 ## Offline strategy
 
@@ -140,3 +141,24 @@ this area then go offline" journey is a first-class test, not a manual check.
 WCAG 2.2 AA: contrast ≥ 4.5:1 (verified in both day and night themes), full keyboard navigation of
 the list view (the map itself has a list equivalent — the map is never the only way to reach data),
 screen-reader labels in French, respects `prefers-reduced-motion`.
+
+
+---
+
+## The Streamlit shop window
+
+A second, deliberately smaller front end (`streamlit_app.py`, `app/`) over the checked-in Bretagne
+extract: read-only, zero backend, deployable on Community Cloud. It is not a second
+implementation of the product and it shares no code with `web/`.
+
+What it borrows from this document: the map is the screen, the chrome floats, marks carry their
+own S-57 colour, night mode is a first-class control. What it does differently, because Streamlit
+re-runs the whole script on every interaction:
+
+| Concern | How |
+|---|---|
+| Layout | CSS pins each `st.container(key=…)` over a 100dvh deck.gl canvas |
+| Camera | Held in session state; only a search result moves it, so a rerun never snaps the view back |
+| Selection | deck.gl returns the picked row's index; only a *change* of pick is an event, so closing the sheet is not undone by the pick Streamlit replays each rerun |
+| Widget state | Every widget is instantiated before anything reruns — Streamlit discards the state of a widget it did not see, which silently reset night mode |
+| Search | Places and harbours only, never individual marks; a pick moves the camera and leaves the layer filters alone |

@@ -152,3 +152,17 @@ exit gate — [14](14-roadmap.md)).
    [06 §B.6](06-availability-strategy.md) re-verified — no state without source + age, ambiguity
    collapses to `unknown`.)*
 5. If it touches personal data: retention and erasure path updated in [04](04-licensing-and-legal.md).
+
+
+---
+
+## Regression tests earned the hard way
+
+| Test | Guards |
+|---|---|
+| `test_catspm_keeps_the_unassigned_38_hole` | S-57 Appendix A assigns no code 38. Closing the hole shifts 14 labels and mislabels real marks — aquaculture as artificial reef, a prohibition as roadworks. Four anchor codes pin the numbering. |
+| `test_list_typed_categories_decode_every_value` | SHOM publishes `catspm="16,50"` and `cathaf="5,4"`. Decoded as scalars they abort the ingest. |
+
+Both came from widening the extract past Morbihan: the seed fixture is too small to contain the
+data that breaks the decoder, so **a green suite does not mean the ingest survives a bigger bbox**.
+Re-run `make webdata` after touching the S-57 tables.

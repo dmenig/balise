@@ -179,6 +179,28 @@ This table is the evidence behind the v1 scope cut: **every row is a months-long
 weak proxy, and none of it can be fetched.** See [06](06-availability-strategy.md) for the seams that
 keep it addable, and [15 R1](15-risks-and-open-questions.md) for the residual risk.
 
+## F-bis. Coastal places — OpenStreetMap (navigation aid, not référentiel)
+
+The référentiel knows buoys, not towns, so the app's search box had nowhere to send anyone. A
+gazetteer is pulled over the same bbox and kept beside the extract, never loaded into PostGIS.
+
+| Source | Query | Yield (Bretagne bbox) |
+|---|---|---|
+| Overpass, `place=city\|town\|village` on nodes | ✅ no key | 688 kept |
+| Overpass, `place=island` on **nodes, ways and relations** | ✅ | 58 kept |
+
+Two things are load-bearing:
+
+- **Islands must be queried as ways and relations too.** Belle-Île, Groix, Bréhat and Ouessant
+  are mapped as areas, not nodes; a node-only query silently loses every island worth sailing to
+  and nothing in the output looks wrong.
+- **Islets are excluded.** `place=islet` yields 690 named rocks in this bbox ("Al Leac'h", "Amas
+  du Cap") which bury the 46 towns in the suggestion list.
+
+Places further than 5 km from any charted object are dropped, which leaves the coast and the
+islands and discards inland Brittany: 2 068 fetched → 746 kept. Licence ODbL, same attribution as
+§B. See `ingest/src/balise_ingest/places.py`.
+
 ## G. Assets
 
 | Need | Source |

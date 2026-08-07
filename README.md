@@ -27,21 +27,35 @@ make streamlit                           # http://localhost:8501
 ```
 
 A map-first web app, not a document with a chart in it: the deck.gl canvas fills the viewport and
-every control floats over it — search, layer pills, a detail sheet that opens when you tap a mark,
-a legend, night mode. Marks are drawn in **their own colour**, so a green lateral buoy is green.
+the chrome floats over it, folded away until asked for. Search is a pill until you open it and
+collapses once you have picked somewhere; layer pills, a detail sheet that opens on a tap, a
+legend and night mode are the rest. Marks are drawn in **their own colour**, so a green lateral
+buoy is green. Tapping open water closes the sheet.
+
+You search for **a place or a harbour** — never an individual buoy. Picking one only moves the
+camera, pulling back by what you chose (a city at z11.5, a harbour at z14.5), and leaves your
+layer pills exactly as they were, so you arrive with every nearby mark, mooring and zone drawn.
 
 It reads [`data/`](data/) directly — no PostGIS, no API, no network — so it deploys as-is on
-Streamlit Community Cloud (entrypoint `streamlit_app.py`, dependencies
-[`requirements.txt`](requirements.txt)). The dataset is **the whole of Bretagne and its
-approaches**, from Chausey to the Loire estuary: 9 775 objects (6 500 marks, 2 254 mooring spots,
-843 anchorage zones, 178 harbours) in 460 kB of Parquet. Rebuild it with `make webdata`; widen
-`WEB_BBOX` to cover more coast. A gazetteer of 746 coastal places rides alongside so the
-search box has somewhere to send you.
+Streamlit Community Cloud (entrypoint `streamlit_app.py`). The dataset is **the whole of Bretagne
+and its approaches**, from Chausey to the Loire estuary: 9 775 objects (6 500 marks, 2 254 mooring
+spots, 843 anchorage zones, 178 harbours) in 460 kB of Parquet, plus a gazetteer of 746 coastal
+places for the search box. Rebuild both with `make webdata`; widen `WEB_BBOX` to cover more coast.
+
+Everything the map draws travels **inside the deck spec**, which Streamlit re-sends on every
+rerun — so the payload is the design constraint, and it is 0.87 MB. Three things get it there:
+marks are grouped into one layer per S-57 colour so colour and radius are layer constants rather
+than fields on 9 775 rows; rows carry a positional index instead of a uid; and `CompactDeck`
+overrides pydeck's `indent=2` serialisation, which alone was 1.8 MB of whitespace per message.
+An earlier version served the geometry from files under Streamlit's static route, which is far
+cheaper still — but only works when the host both serves that route *and* lets the browser reach
+it, and when it does not you get a basemap with nothing on it and no error. See
+[12 §Streamlit Community Cloud](docs/12-deployment-and-ops.md).
 
 | File | Role |
 |---|---|
 | [`streamlit_app.py`](streamlit_app.py) | entrypoint: state, selection, camera |
-| [`app/data.py`](app/data.py) | the Parquet tables, layer palette, search |
+| [`app/data.py`](app/data.py) | the Parquet tables, layer palette, place + harbour search index |
 | [`app/features.py`](app/features.py) | the rows deck.gl draws, shaped for a small payload |
 | [`app/deck.py`](app/deck.py) | the deck.gl scene and its picking layers |
 | [`app/panels.py`](app/panels.py) | the floating chrome |
@@ -95,7 +109,7 @@ by replacing one object. See [06](docs/06-availability-strategy.md) and [14](doc
 | REST + MVT tiles | [api/routers/](api/src/balise_api/routers/) | ✅ `/spots`, `/harbours`, `/navaids`, `/tiles`, `/tides`, `/weather`, ODbL export |
 | Corrections loop | [issues.py](api/src/balise_api/services/issues.py) | ✅ `POST /issues` → moderation queue → `overrides.yml` PR |
 | Web PWA | [web/src/](web/src/) | ✅ map, kind/boat/shelter filters, sheets, offline download + queue, night mode, i18n, prerendered harbour pages |
-| Public map app | [streamlit_app.py](streamlit_app.py) · [app/](app/) | ✅ full-bleed deck.gl map over the whole Bretagne extract, click-to-select, search, night mode, responsive; zero backend |
+| Public map app | [streamlit_app.py](streamlit_app.py) · [app/](app/) | ✅ full-bleed deck.gl map over the whole Bretagne extract, click-to-select, place/harbour search, night mode, responsive; 0.87 MB per rerun; zero backend |
 | Env worker | [env_worker.py](workers/src/balise_workers/env_worker.py) | ✅ tides + weather refresh on a scheduler |
 | **The six seams** | [availability/](api/src/balise_api/services/availability/) · [liveUpdates.ts](web/src/map/liveUpdates.ts) | ✅ S1 empty tables · S2 provider port + null impl · S3 `status: null` and `501` · S4 status never in tiles · S5 neutral-by-kind UI · S6 MBFS drafted, unpublished |
 | 🔌 v2 availability plug-in | [availability/](api/src/balise_api/services/availability/) · [tests](api/tests/v2/) | Implemented behind the seam and kept green, wired by one line when M3 starts (docs/14) |
@@ -108,9 +122,9 @@ by replacing one object. See [06](docs/06-availability-strategy.md) and [14](doc
 | Gate | Result |
 |---|---|
 | `ruff format --check` + `ruff check` + `prettier` + `eslint` | clean |
-| `mypy --strict api ingest workers ops` (sources, tests **and** ops scripts) | clean, 134 files |
+| `mypy --strict api ingest workers ops app streamlit_app.py` | clean, 143 files |
 | `tsc --noEmit` (strict, no `any`) | clean |
-| v1 pytest (unit + PostGIS integration + golden files) | **116 passed** — api 53 · ingest 59 · workers 4 |
+| v1 pytest (unit + PostGIS integration + golden files) | **118 passed** — api 55 · ingest 59 · workers 4 |
 | Seam tests (docs/13) | **6 passed** — including "v1 never writes to the 🔌 tables" and "the flag has exactly one reference" |
 | vitest | **25 passed** |
 | Playwright, mobile viewport | **7 passed** — incl. download area → offline → read → queue a correction → reconnect → flush |
@@ -136,8 +150,10 @@ by replacing one object. See [06](docs/06-availability-strategy.md) and [14](doc
 1. **Useful before it is live.** The referential alone is the product; availability is an increment.
 2. **Honest confidence.** v1 applies this in its strongest form: rather than a bad availability, it
    shows none, and offers the capitainerie's phone and VHF channel instead.
-3. **Not a navigation instrument.** The disclaimer is part of the map chrome, blocking on first use,
-   and official up-to-date charts remain mandatory.
+3. **Not a navigation instrument.** Official up-to-date charts remain mandatory. In the PWA the
+   disclaimer is map chrome, blocking on first use; the Streamlit shop window keeps it and the
+   licences one tap away behind an ⓘ instead — a deliberate divergence from
+   [04 §3](docs/04-licensing-and-legal.md), recorded there.
 
 ```
 Fonds de carte © OpenStreetMap contributors (ODbL) — Amers et balisage : Shom, 2026 (Licence
