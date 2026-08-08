@@ -157,8 +157,12 @@ re-runs the whole script on every interaction:
 
 | Concern | How |
 |---|---|
-| Layout | CSS pins each `st.container(key=…)` over a 100dvh deck.gl canvas |
-| Camera | Held in session state; only a search result moves it, so a rerun never snaps the view back |
-| Selection | deck.gl returns the picked row's index; only a *change* of pick is an event, so closing the sheet is not undone by the pick Streamlit replays each rerun |
-| Widget state | Every widget is instantiated before anything reruns — Streamlit discards the state of a widget it did not see, which silently reset night mode |
-| Search | Places and harbours only, never individual marks; a pick moves the camera and leaves the layer filters alone |
+| Layout | CSS pins each `st.container(key=…)` over a 100dvh deck.gl canvas; only the controls themselves take the pointer, so a panel never puts a dead zone over the map |
+| Chrome | One dock at the bottom — search, filter chips that double as the legend, the credits in small print, and the detail card in their place while something is selected — plus ⌖ and day/night. The top of the screen is never covered |
+| Detail | Kicker and name, up to three facts as chips, the rest as rows, and the position. An unnamed mark is titled by what it is ("Tourelle bâbord"), never "Sans nom"; no source ids, and lights read `Fl(2)R 6s 2 M` rather than the raw S-57 record |
+| Camera | Held in session state; only a search result or ⌖ moves it, so a rerun never snaps the view back |
+| Selection | deck.gl returns the picked row's index; only a *change* of pick is an event. There is no close button: the same pick comes back on every rerun, so a sheet closed by a button could not be reopened by tapping the same object. Tapping the map — a pick of nothing — is the close |
+| Zones | Filled, never stroked: `PolygonLayer(stroked=True)` adds a PathLayer sublayer that, past a few hundred polygons, silently kills click picking for the whole scene |
+| Cost of a tap | ~1 s, of which most is Streamlit re-sending the 0.87 MB spec. Any *change* to the spec adds another ~0.7 s, so the search ring is pinned to the destination rather than following the selection |
+| Search | Places and harbours only, never individual marks; a pick moves the camera and leaves the chips alone |
+| Screenshots | `shot.py` drives the running app with Playwright and writes `shots/<state>-{desktop,phone}.png` |

@@ -26,15 +26,23 @@ make web                                 # http://localhost:5173
 make streamlit                           # http://localhost:8501
 ```
 
-A map-first web app, not a document with a chart in it: the deck.gl canvas fills the viewport and
-the chrome floats over it, folded away until asked for. Search is a pill until you open it and
-collapses once you have picked somewhere; layer pills, a detail sheet that opens on a tap, a
-legend and night mode are the rest. Marks are drawn in **their own colour**, so a green lateral
-buoy is green. Tapping open water closes the sheet.
+A map-first web app, not a document with a chart in it. **The top of the screen is the chart and
+nothing else**: everything you can touch is in one dock at the bottom, where a thumb reaches, plus
+two round buttons. The dock holds where you are going and what you are looking for — and the
+moment you tap something, its card takes the dock's place until you tap the water again. The
+chips wear the colour of what they draw, so there is no legend; the safety notice and the
+licences are one line of small print along the dock's foot, not a menu; marks are drawn in **their
+own colour**, so a green lateral buoy is green. The card has no ✕: deck.gl replays the same pick
+on every rerun, so a card dismissed by a button could not be reopened by tapping the same mark
+again — tapping the map is the close. Screenshots of every state are in [`shots/`](shots/);
+`uv run python shot.py shots/<name> <state>` retakes them.
 
-You search for **a place or a harbour** — never an individual buoy. Picking one only moves the
-camera, pulling back by what you chose (a city at z11.5, a harbour at z14.5), and leaves your
-layer pills exactly as they were, so you arrive with every nearby mark, mooring and zone drawn.
+You search for **a place or a harbour** — never an individual buoy. Picking one moves the camera,
+pulling back by what you chose (a city at z11.5, a harbour at z14.5), drops a ring on it and
+leaves your chips exactly as they were, so you arrive with every nearby mark, mooring and zone
+drawn. The ring marks where you asked to go and stays put: a ring that followed the selection
+would change the deck spec on every tap, and any change to the spec costs the browser most of a
+second rebuilding the scene.
 
 It reads [`data/`](data/) directly — no PostGIS, no API, no network — so it deploys as-is on
 Streamlit Community Cloud (entrypoint `streamlit_app.py`). The dataset is **the whole of Bretagne
@@ -109,7 +117,7 @@ by replacing one object. See [06](docs/06-availability-strategy.md) and [14](doc
 | REST + MVT tiles | [api/routers/](api/src/balise_api/routers/) | ✅ `/spots`, `/harbours`, `/navaids`, `/tiles`, `/tides`, `/weather`, ODbL export |
 | Corrections loop | [issues.py](api/src/balise_api/services/issues.py) | ✅ `POST /issues` → moderation queue → `overrides.yml` PR |
 | Web PWA | [web/src/](web/src/) | ✅ map, kind/boat/shelter filters, sheets, offline download + queue, night mode, i18n, prerendered harbour pages |
-| Public map app | [streamlit_app.py](streamlit_app.py) · [app/](app/) | ✅ full-bleed deck.gl map over the whole Bretagne extract, click-to-select, place/harbour search, night mode, responsive; 0.87 MB per rerun; zero backend |
+| Public map app | [streamlit_app.py](streamlit_app.py) · [app/](app/) | ✅ full-bleed deck.gl map over the whole Bretagne extract, tap-to-select (~1 s), place/harbour search, filter chips, day/night, responsive; 0.87 MB per rerun; zero backend |
 | Env worker | [env_worker.py](workers/src/balise_workers/env_worker.py) | ✅ tides + weather refresh on a scheduler |
 | **The six seams** | [availability/](api/src/balise_api/services/availability/) · [liveUpdates.ts](web/src/map/liveUpdates.ts) | ✅ S1 empty tables · S2 provider port + null impl · S3 `status: null` and `501` · S4 status never in tiles · S5 neutral-by-kind UI · S6 MBFS drafted, unpublished |
 | 🔌 v2 availability plug-in | [availability/](api/src/balise_api/services/availability/) · [tests](api/tests/v2/) | Implemented behind the seam and kept green, wired by one line when M3 starts (docs/14) |

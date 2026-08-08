@@ -54,6 +54,76 @@ MARK_COLOURS: dict[str, tuple[int, int, int]] = {
 }
 
 
+#: S-57 LITCHR and COLOUR, as a chart writes them: `Fl(3)R 12s · 4 M`, not a record of codes.
+LIGHT_CHARACTER: dict[int, str] = {
+    1: "F",
+    2: "Fl",
+    3: "LFl",
+    4: "Q",
+    5: "VQ",
+    6: "UQ",
+    7: "Iso",
+    8: "Oc",
+    9: "IQ",
+    10: "IVQ",
+    11: "IUQ",
+    12: "Mo",
+    13: "FFl",
+    25: "Q+LFl",
+    26: "VQ+LFl",
+    27: "UQ+LFl",
+    28: "Al",
+}
+LIGHT_COLOUR: dict[str, str] = {"1": "W", "3": "R", "4": "G", "5": "Bu", "6": "Y", "10": "Vi"}
+SERVICE_LABELS: dict[str, str] = {
+    "pump_out": "Eaux noires",
+    "fuel": "Carburant",
+    "water": "Eau",
+    "electricity": "Électricité",
+    "shower": "Douches",
+    "toilets": "Toilettes",
+    "crane": "Grue",
+    "slipway": "Cale",
+    "laundry": "Laverie",
+    "wifi": "Wi-Fi",
+}
+
+
+def _number(value: object) -> float | None:
+    """Shom writes these as numbers, OpenSeaMap as the strings a mapper typed."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    return None
+
+
+def light_of(light: dict[str, object]) -> str:
+    """The light's characteristic. Shom fills the S-57 codes, OpenSeaMap the abbreviations."""
+    code = _number(light.get("litchr"))
+    character = (
+        LIGHT_CHARACTER.get(int(code), "")
+        if code is not None
+        else str(light.get("osm_character") or "")
+    )
+    group = str(light.get("siggrp") or "").replace("(1)", "")
+    parts = [f"{character}{group}{LIGHT_COLOUR.get(str(light.get('colour')), '')}"]
+    period = _number(light.get("sigper")) or _number(light.get("osm_period"))
+    if period:
+        parts.append(f"{period:g}s")
+    nominal_range = _number(light.get("valnmr")) or _number(light.get("osm_range"))
+    if nominal_range:
+        parts.append(f"{nominal_range:g} M")
+    return " ".join(part for part in parts if part)
+
+
+def services_of(services: str) -> str:
+    return ", ".join(SERVICE_LABELS.get(tag, tag) for tag in services.split(";"))
+
+
 @dataclass(frozen=True, slots=True)
 class Dataset:
     points: pd.DataFrame
@@ -130,7 +200,7 @@ def search_index() -> dict[str, Destination]:
     ]
     index: dict[str, Destination] = {}
     for _, name, kind, row, uid in sorted(rows, key=lambda item: (item[0], item[1])):
-        label = f"{name} — {kind}"
+        label = f"{name} · {kind}"
         # Several communes share a name with their harbour; keep both reachable.
         if label in index:
             label = f"{label} ({row['lat']:.3f}, {row['lon']:.3f})"

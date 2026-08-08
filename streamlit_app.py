@@ -12,7 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from app import panels
-from app.data import Dataset, apply_filters, load
+from app.data import Dataset, load
 from app.deck import View, build, layer_ids
 from app.theme import css
 
@@ -65,48 +65,51 @@ def main() -> None:
         # Follow whatever theme the viewer put Streamlit in, so the chrome never fights the app.
         st.session_state["night"] = _viewer_prefers_dark()
     night = bool(st.session_state["night"])
-    st.markdown(css(night), unsafe_allow_html=True)
-
-    filters, searched = panels.topbar()
     uid = str(st.session_state.get("selected") or "")
     selected = _row_for(dataset, uid) if uid else None
+    st.markdown(css(night, selected is not None), unsafe_allow_html=True)
+
+    # The dock is drawn first because the map is drawn from what it says; CSS pins it over
+    # the canvas regardless of the order Streamlit writes the two out in.
+    filters, searched = panels.dock(selected)
 
     view: View = st.session_state.get("view", HOME)
+    pin: tuple[float, float] | None = st.session_state.get("pin")
     with st.container(key="mapwrap"):
         event = st.pydeck_chart(
-            build(filters.layers, filters.visitor_only, view, night, selected),
+            build(filters.layers, filters.visitor_only, view, night, pin),
             key="map",
             on_select="rerun",
             selection_mode="single-object",
             height=900,
         )
 
-    # The count comes from the frames; the map draws the same objects from the deck spec.
-    shown = len(apply_filters(dataset.points, filters)) + len(apply_filters(dataset.areas, filters))
-    closed = panels.sheet(dataset, selected, shown)
-    panels.legend()
+    action = panels.rail(night)
     panels.diagnostics(dataset)
 
-    # Every widget is instantiated above, before anything can rerun. Streamlit discards the
-    # session-state entry of a widget it did not see on a run, so rerunning from the map click
-    # — which sits above the legend — used to drop `night` and switch the map back to day.
-    # deck.gl keeps the last pick in widget state and hands it back on every rerun, so acting
-    # on its mere presence re-opened the sheet the instant "Fermer" closed it. Only a *change*
-    # is an event — and a change to nothing means the sailor tapped open water, which closes.
+    # Every widget is instantiated above, before anything can rerun. deck.gl keeps the last
+    # pick in widget state and hands it back on every rerun, so acting on its mere presence
+    # re-opened the sheet the instant it was closed. Only a *change* is an event — and a
+    # change to nothing means the sailor tapped open water, which closes.
     hit = _picked(event)
     moved = hit != st.session_state.get("last_pick")
     st.session_state["last_pick"] = hit
 
-    if closed:
+    if action == "night":
+        st.session_state["night"] = not night
+        st.rerun()
+    elif action == "home":
+        st.session_state["view"] = HOME
+        st.session_state["pin"] = None
         _select("")
-    # Searching moves the camera and nothing else: whatever layers are on stay on, so the
+    # Searching moves the camera and nothing else: whatever chips are on stay on, so the
     # sailor lands on a place with every nearby mark, mooring and zone still drawn. Only a
     # harbour — the most precise thing you can search for — also opens its detail.
     elif searched is not None and st.session_state.get("flown_to") != searched:
         st.session_state["flown_to"] = searched
         st.session_state["view"] = View(searched.lon, searched.lat, searched.zoom)
+        st.session_state["pin"] = (searched.lon, searched.lat)
         st.session_state["selected"] = searched.uid
-        st.session_state["search_open"] = False
         st.rerun()
     elif moved:
         _select(_uid_at(dataset, *hit) if hit else "")

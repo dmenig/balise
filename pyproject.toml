@@ -32,6 +32,8 @@ dev = [
     "types-pyyaml>=6.0",
     "types-python-jose>=3.5.0.20260408",
     "boto3-stubs>=1.43.65",
+    # `shot.py`: the map app is a UI, and a UI is reviewed by looking at it.
+    "playwright>=1.49",
 ]
 
 [tool.uv.workspace]

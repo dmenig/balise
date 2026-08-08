@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-import pandas as pd
 import pydeck as pdk
 
 from app.data import LAYERS
@@ -58,41 +57,55 @@ def _points_layer(group: Group, rows: list[dict[str, object]], night: bool) -> p
         get_position="p",
         get_fill_color=list(group.colour),
         get_radius=group.radius_m,
-        radius_min_pixels=2.5,
-        radius_max_pixels=16,
+        radius_min_pixels=3.2,
+        radius_max_pixels=17,
         stroked=True,
         get_line_color=[8, 20, 32, 200] if night else [255, 255, 255, 190],
         line_width_min_pixels=1,
         pickable=True,
-        auto_highlight=True,
+        # Streamlit already fades everything but the tapped object to 40 % alpha; deck's own
+        # hover tint on top of that is one highlight too many, and it is bruise-purple.
+        auto_highlight=False,
     )
 
 
 def _areas_layer() -> pdk.Layer:
+    """Filled, never stroked.
+
+    `stroked=True` makes PolygonLayer add a PathLayer sublayer, and past a few hundred
+    polygons — Bretagne has 843 — that sublayer silently breaks deck.gl's click picking for
+    *the whole scene*: hover still highlights, but a tap returns no object, so nothing on the
+    map can be selected any more. A softer fill reads as well as an outline and keeps the tap.
+    """
     fill = list(LAYERS["field"].colour)
     return pdk.Layer(
         "PolygonLayer",
         id=AREAS_LAYER,
         data=area_rows(),
         get_polygon="polygon",
-        get_fill_color=[*fill, 55],
-        get_line_color=[*fill, 200],
-        line_width_min_pixels=1,
-        stroked=True,
+        get_fill_color=[*fill, 78],
+        stroked=False,
+        filled=True,
         pickable=True,
-        auto_highlight=True,
+        auto_highlight=False,
     )
 
 
-def _highlight(record: pd.Series | None, night: bool) -> list[pdk.Layer]:
-    """A ring around the current pick, so the sheet and the map never disagree about what's open."""
-    if record is None:
+def _pin(place: tuple[float, float] | None, night: bool) -> list[pdk.Layer]:
+    """A ring on the place the search took you to — the dropped pin, not the current pick.
+
+    Marking the pick instead would put a *changing* layer in the spec, and any change to the
+    spec makes the browser rebuild the whole scene: it costs the best part of a second on
+    every single tap. The sheet already says what you tapped; the ring says where you asked
+    to go, and stays put while you look around.
+    """
+    if place is None:
         return []
     return [
         pdk.Layer(
             "ScatterplotLayer",
-            id="highlight",
-            data=[{"p": [float(record["lon"]), float(record["lat"])]}],
+            id="pin",
+            data=[{"p": [place[0], place[1]]}],
             get_position="p",
             get_radius=180,
             radius_min_pixels=13,
@@ -111,7 +124,7 @@ def build(
     visitor_only: bool,
     view: View,
     night: bool,
-    selected: pd.Series | None = None,
+    pin: tuple[float, float] | None = None,
 ) -> pdk.Deck:
     keep = visitor_indices() if visitor_only else None
     layers: list[pdk.Layer] = []
@@ -127,7 +140,7 @@ def build(
             else group.rows
         )
         layers.append(_points_layer(group, rows, night))
-    layers.extend(_highlight(selected, night))
+    layers.extend(_pin(pin, night))
     return CompactDeck(
         layers=layers,
         initial_view_state=pdk.ViewState(
