@@ -109,9 +109,6 @@ html, body, [data-testid="stAppViewContainer"] { height: 100%; overflow: hidden;
   width: 38px; height: 4px; border-radius: 999px; background: var(--edge);
   margin: 0 auto 10px; display: none;
 }
-.fineprint { font-size: 10px; line-height: 1.35; color: var(--muted); margin-top: 10px; }
-.fineprint b { color: var(--muted); }
-
 .sheet-kicker { font-size: 11px; font-weight: 700; letter-spacing: .09em;
   text-transform: uppercase; color: var(--accent); }
 .sheet-title { font-size: 21px; font-weight: 700; line-height: 1.2; margin: 3px 0 10px;

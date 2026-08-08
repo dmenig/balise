@@ -2,8 +2,11 @@
 
 The top of the screen is the chart. Everything you can touch is in the dock — where you are
 going, what you are looking for, and, the moment you tap something, what it is. The chips
-wear the colour of what they draw, so there is no legend; the safety notice and the licences
-are one line of small print along its foot, because they are not a menu anyone opens.
+wear the colour of what they draw, so there is no legend.
+
+Nothing on screen credits the sources: the safety notice and the licence line were removed on
+request. The attribution ODbL and the Licence Ouverte ask for now lives only in the repository
+— README and docs/04.
 """
 
 from __future__ import annotations
@@ -26,11 +29,6 @@ from app.data import (
 )
 
 VISITOR = "visitor"
-
-CREDITS = (
-    "<b>Ne pas utiliser pour la navigation.</b> Shom (Licence Ouverte) · "
-    "OpenStreetMap / OpenSeaMap (ODbL) · CARTO"
-)
 
 #: The three facts that go in the sheet's chip row, in order of preference.
 CHIPS: tuple[tuple[str, str], ...] = (
@@ -96,10 +94,6 @@ def dock(selected: pd.Series | None) -> tuple[Filters, Destination | None]:
                 key="filters",
                 label_visibility="collapsed",
             )
-            # No ⓘ, no popover: the warning and the licences are not a menu anyone opens.
-            # They are one line of small print along the foot of the dock, the way a map
-            # carries its credits — and ODbL and the Licence Ouverte both require them.
-            st.markdown(f'<div class="fineprint">{CREDITS}</div>', unsafe_allow_html=True)
     picked = tuple(chosen or ())
     destination = search_index().get(label) if label else None
     filters = Filters(
