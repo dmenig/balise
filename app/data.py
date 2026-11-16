@@ -75,6 +75,15 @@ LIGHT_CHARACTER: dict[int, str] = {
     28: "Al",
 }
 LIGHT_COLOUR: dict[str, str] = {"1": "W", "3": "R", "4": "G", "5": "Bu", "6": "Y", "10": "Vi"}
+#: OpenSeaMap's `seamark:light:colour`, as words, sometimes `;`-separated for a sector light.
+OSM_LIGHT_COLOUR: dict[str, str] = {
+    "white": "W",
+    "red": "R",
+    "green": "G",
+    "blue": "Bu",
+    "yellow": "Y",
+    "violet": "Vi",
+}
 SERVICE_LABELS: dict[str, str] = {
     "pump_out": "Eaux noires",
     "fuel": "Carburant",
@@ -110,7 +119,11 @@ def light_of(light: dict[str, object]) -> str:
         else str(light.get("osm_character") or "")
     )
     group = str(light.get("siggrp") or "").replace("(1)", "")
-    parts = [f"{character}{group}{LIGHT_COLOUR.get(str(light.get('colour')), '')}"]
+    colour = LIGHT_COLOUR.get(str(light.get("colour")), "") or "".join(
+        OSM_LIGHT_COLOUR.get(word.strip(), "")
+        for word in str(light.get("osm_colour") or "").split(";")
+    )
+    parts = [f"{character}{group}{colour}"]
     period = _number(light.get("sigper")) or _number(light.get("osm_period"))
     if period:
         parts.append(f"{period:g}s")
